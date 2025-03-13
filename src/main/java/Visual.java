@@ -14,7 +14,7 @@ public class Visual {
     private static final String CONNECTION_STRING = "s7://192.168.2.12:102";
 
     public static void main(String[] args) {
-
+// Ipconfig para obtener la ip de la maquina
         String version = PlcDriverManager.class.getPackage().getImplementationVersion();
         System.out.println("Versión de PLC4X: " + (version != null ? version : "No disponible"));
 
