@@ -25,50 +25,52 @@ public class Visual {
         try (PlcConnection connection = new PlcDriverManager().getConnection(CONNECTION_STRING)) {
             System.out.println("Conexión creada, intentando establecer comunicación...");
 
-            // Conectar explícitamente si es necesario
             if (!connection.isConnected()) {
                 connection.connect();
             }
             
-            // Verificamos si la conexión se estableció correctamente
             if (connection.isConnected()) {
                 System.out.println("✅ ÉXITO: Conexión establecida correctamente");
                 System.out.println("Detalles: " + connection.getMetadata().toString());
                 
                 try {
-                    // Lectura de datos DB1 offset 0, 2 bytes
-                    // La sintaxis correcta para acceder a un dato en S7 es: %DB{dbNum}.{offset}:{tipo}
+            
+                    // Acceso a datos  %DB{dbNum}.{offset}:{tipo}
                     PlcReadRequest.Builder builder = connection.readRequestBuilder();
-                    builder.addItem("db1", "%DB1.DBW2:INT");  // Formato correcto para PLC4X versión 0.9.1
+                    builder.addItem("db1", "%DB1.DBW2:INT"); 
                     PlcReadRequest readRequest = builder.build();
                     PlcReadResponse response = readRequest.execute().get();
                     System.out.println("Valor de DB1: " + response.getAllIntegers("db1"));
                     System.out.println("\n✅ RESULTADO: Se logró establecer conexión y leer datos del PLC");
+                    
                 } catch (InterruptedException | ExecutionException e) {
                     System.out.println("❌ ERROR: No se pudieron leer datos: " + e.getMessage());
                     logger.error("Error al leer datos: {}", e.getMessage());
                     System.out.println("\n✅ RESULTADO: Se logró establecer conexión con el PLC pero falló la lectura de datos");
                 }
+                
             } else {
                 System.out.println("❌ ERROR: No se pudo establecer la conexión");
                 System.out.println("\n❌ RESULTADO: Fallo al conectar con el PLC");
             }
+            
         } catch (PlcConnectionException e) {
-            // Capturamos específicamente errores de conexión
+            
+        	// errores de conexión
             System.out.println("❌ ERROR: Error de conexión: " + e.getMessage());
             logger.error("Error de conexión con formato {}: {}", CONNECTION_STRING, e.getMessage());
             mostrarSugerenciasDeSolucion();
+            
         } catch (Exception e) {
-            // Capturamos cualquier otra excepción inesperada
+           
+        	// Capturamos cualquier otra excepción inesperada
             System.out.println("❌ ERROR: Excepción inesperada: " + e.getMessage());
             logger.error("Excepción inesperada con formato {}", CONNECTION_STRING, e);
             mostrarSugerenciasDeSolucion();
+            
         }
     }
 
-    /**
-     * Muestra sugerencias para resolver problemas de conexión.
-     */
     private static void mostrarSugerenciasDeSolucion() {
         System.out.println("\nPosibles soluciones:");
         System.out.println("1. Verifica que el PLC esté encendido y accesible en la red");
