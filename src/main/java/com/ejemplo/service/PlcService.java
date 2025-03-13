@@ -19,6 +19,7 @@ public class PlcService {
     private PlcConnection connection;
     private String lastError;
     private boolean connected = false;
+    private Object lastValue;
     
     public boolean connect() {
         try {
@@ -72,7 +73,7 @@ public class PlcService {
     
     public boolean readDB1Data() {
         if (!this.connected || connection == null) {
-            System.out.println("ERROR: No hay conexión activa con el PLC");
+            System.out.println("❌ ERROR: No hay conexión activa con el PLC");
             return false;
         }
         
@@ -83,13 +84,16 @@ public class PlcService {
             PlcReadRequest readRequest = builder.build();
             PlcReadResponse response = readRequest.execute().get();
             
-            System.out.println("Valor de DB1: " + response.getAllIntegers("db1"));
-            System.out.println("\n RESULTADO: Se logró establecer conexión y leer datos del PLC");
+            // Guarda el último valor
+            this.lastValue = response.getAllIntegers("db1");
+            
+            System.out.println("Valor de DB1: " + this.lastValue);
+            System.out.println("\n✅ RESULTADO: Se logró establecer conexión y leer datos del PLC");
             return true;
         } catch (InterruptedException | ExecutionException e) {
-            System.out.println("ERROR: No se pudieron leer datos: " + e.getMessage());
+            System.out.println("❌ ERROR: No se pudieron leer datos: " + e.getMessage());
             logger.error("Error al leer datos: {}", e.getMessage());
-            System.out.println("\n RESULTADO: Se logró establecer conexión con el PLC pero falló la lectura de datos");
+            System.out.println("\n✅ RESULTADO: Se logró establecer conexión con el PLC pero falló la lectura de datos");
             return false;
         }
     }
@@ -113,5 +117,9 @@ public class PlcService {
     
     public String getConnectionString() {
         return CONNECTION_STRING;
+    }
+
+    public Object getLastValue() {
+        return lastValue;
     }
 }
