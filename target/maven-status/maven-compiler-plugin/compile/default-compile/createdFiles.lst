@@ -1,0 +1,3 @@
+com\ejemplo\service\PlcService.class
+com\ejemplo\PlcApplication.class
+com\ejemplo\console\PlcConsoleRunner.class
