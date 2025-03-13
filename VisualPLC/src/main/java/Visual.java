@@ -35,7 +35,6 @@ public class Visual {
                 System.out.println("✅ ÉXITO: Conexión establecida correctamente");
                 System.out.println("Detalles: " + connection.getMetadata().toString());
                 
-                // Intentamos leer datos - esta parte solo se ejecuta si la conexión es exitosa
                 try {
                     // Lectura de datos DB1 offset 0, 2 bytes
                     // La sintaxis correcta para acceder a un dato en S7 es: %DB{dbNum}.{offset}:{tipo}
