@@ -42,6 +42,10 @@ public class Visual {
                     PlcReadResponse response = readRequest.execute().get();
                     System.out.println("Valor de DB1: " + response.getAllIntegers("db1"));
                     System.out.println("\n✅ RESULTADO: Se logró establecer conexión y leer datos del PLC");
+
+                  
+                    
+
                     
                 } catch (InterruptedException | ExecutionException e) {
                     System.out.println("❌ ERROR: No se pudieron leer datos: " + e.getMessage());
