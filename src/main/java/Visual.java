@@ -9,7 +9,7 @@ import java.util.concurrent.ExecutionException;
 
 
 public class Visual {
-
+//hola
     private static final Logger logger = LoggerFactory.getLogger(Visual.class);
     private static final String CONNECTION_STRING = "s7://192.168.2.12:102";
 
