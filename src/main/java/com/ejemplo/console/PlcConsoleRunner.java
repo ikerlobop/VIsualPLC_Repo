@@ -12,7 +12,6 @@ public class PlcConsoleRunner implements CommandLineRunner {
 
     @Autowired
     private PlcService plcService;
-    
     @Override
     public void run(String... args) {
         System.out.println("=================================================");
@@ -26,8 +25,7 @@ public class PlcConsoleRunner implements CommandLineRunner {
             System.out.println("\nComandos disponibles:");
             System.out.println("1. Conectar al PLC");
             System.out.println("2. Leer datos de DB1");
-            System.out.println("3. Desconectar");
-            System.out.println("4. Ver estado");
+            System.out.println("3. Ver estado");
             System.out.println("0. Salir");
             System.out.print("\nSeleccione una opción: ");
             
@@ -41,18 +39,22 @@ public class PlcConsoleRunner implements CommandLineRunner {
                     if (plcService.isConnected()) {
                         plcService.readDB1Data();
                     } else {
-                        System.out.println("❌ ERROR: Primero debe conectarse al PLC");
+                        System.out.println("ERROR: Primero debe conectarse al PLC");
                     }
                     break;
                 case "3":
-                    plcService.disconnect();
-                    break;
-                case "4":
                     showStatus();
                     break;
                 case "0":
                     exit = true;
                     System.out.println("Saliendo de la aplicación...");
+                    // Aseguramos la desconexión al salir
+                    if (plcService.isConnected()) {
+                        plcService.disconnect();
+                    }
+                    
+                    // Forzar el cierre de la aplicación
+                    System.exit(0);
                     break;
                 default:
                     System.out.println("Opción no válida, intente de nuevo");

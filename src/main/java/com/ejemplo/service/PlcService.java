@@ -34,24 +34,24 @@ public class PlcService {
             this.connected = connection.isConnected();
             
             if (this.connected) {
-                System.out.println("✅ ÉXITO: Conexión establecida correctamente");
+                System.out.println("ÉXITO: Conexión establecida correctamente");
                 System.out.println("Detalles: " + connection.getMetadata().toString());
             } else {
-                System.out.println("❌ ERROR: No se pudo establecer la conexión");
-                System.out.println("\n❌ RESULTADO: Fallo al conectar con el PLC");
+                System.out.println("ERROR: No se pudo establecer la conexión");
+                System.out.println("\n RESULTADO: Fallo al conectar con el PLC");
             }
             
             return this.connected;
             
         } catch (PlcConnectionException e) {
             this.lastError = e.getMessage();
-            System.out.println("❌ ERROR: Error de conexión: " + e.getMessage());
+            System.out.println("ERROR: Error de conexión: " + e.getMessage());
             logger.error("Error de conexión con formato {}: {}", CONNECTION_STRING, e.getMessage());
             mostrarSugerenciasDeSolucion();
             return false;
         } catch (Exception e) {
             this.lastError = e.getMessage();
-            System.out.println("❌ ERROR: Excepción inesperada: " + e.getMessage());
+            System.out.println("ERROR: Excepción inesperada: " + e.getMessage());
             logger.error("Excepción inesperada con formato {}", CONNECTION_STRING, e);
             mostrarSugerenciasDeSolucion();
             return false;
@@ -72,7 +72,7 @@ public class PlcService {
     
     public boolean readDB1Data() {
         if (!this.connected || connection == null) {
-            System.out.println("❌ ERROR: No hay conexión activa con el PLC");
+            System.out.println("ERROR: No hay conexión activa con el PLC");
             return false;
         }
         
@@ -84,12 +84,12 @@ public class PlcService {
             PlcReadResponse response = readRequest.execute().get();
             
             System.out.println("Valor de DB1: " + response.getAllIntegers("db1"));
-            System.out.println("\n✅ RESULTADO: Se logró establecer conexión y leer datos del PLC");
+            System.out.println("\n RESULTADO: Se logró establecer conexión y leer datos del PLC");
             return true;
         } catch (InterruptedException | ExecutionException e) {
-            System.out.println("❌ ERROR: No se pudieron leer datos: " + e.getMessage());
+            System.out.println("ERROR: No se pudieron leer datos: " + e.getMessage());
             logger.error("Error al leer datos: {}", e.getMessage());
-            System.out.println("\n✅ RESULTADO: Se logró establecer conexión con el PLC pero falló la lectura de datos");
+            System.out.println("\n RESULTADO: Se logró establecer conexión con el PLC pero falló la lectura de datos");
             return false;
         }
     }
