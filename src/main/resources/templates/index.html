@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>PLC Monitor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .status-connected {
+            background-color: #28a745;
+        }
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+        .value-card {
+            transition: background-color 0.3s ease;
+        }
+        .value-update {
+            background-color: #fff3cd;
+        }
+        .data-container {
+            height: 200px;
+            overflow-y: auto;
+        }
+        .data-row {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+        }
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        .pulsing {
+          animation: pulse 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3>Monitor PLC en Tiempo Real</h3>
+            </div>
+            <div class="card-body">
+                <!-- Estado de conexión -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                Estado de la conexión
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div id="connectionIndicator" th:class="${connected ? 'status-indicator status-connected' : 'status-indicator status-disconnected'}"></div>
+                                    <span id="connectionStatus" th:text="${connected ? 'Conectado' : 'Desconectado'}">Estado</span>
+                                </div>
+                                <p><strong>Dirección:</strong> <span th:text="${connectionString}">s7://192.168.2.12:102</span></p>
+                                <div id="errorContainer" th:if="${lastError != null && !lastError.isEmpty()}">
+                                    <div class="alert alert-danger mt-3">
+                                        <strong>Error:</strong> <span id="errorMessage" th:text="${lastError}"></span>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="autoReadSwitch" checked>
+                                        <label class="form-check-label" for="autoReadSwitch">Actualización en tiempo real</label>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">Velocidad de actualización: <span id="updateFrequency">10</span> veces/segundo</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Valor actual -->
+                    <div class="col-md-6">
+                        <div class="card h-100 value-card" id="valueCard">
+                            <div class="card-header">
+                                Valor actual (DB2.DBW0)
+                            </div>
+                            <div class="card-body text-center">
+                                <div id="plcData">
+                                    <div class="display-1 mb-3 fw-bold" id="db1Value">--</div>
+                                    <div>
+                                        <small id="lastUpdateTime" class="text-muted">Última actualización: --</small>
+                                    </div>
+                                    <div class="mt-3">
+                                        <small id="updateCounter" class="text-muted">Actualizaciones: 0</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Historial de valores -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span>Historial de cambios de valor</span>
+                                <button id="clearHistoryBtn" class="btn btn-sm btn-outline-secondary">Limpiar historial</button>
+                            </div>
+                            <div class="card-body p-0">
+                                <div id="dataHistory" class="data-container p-2">
+                                    <!-- El historial de datos se llenará dinámicamente -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botones de control -->
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <button id="connectBtn" class="btn btn-success w-100">Conectar al PLC</button>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <button id="disconnectBtn" class="btn btn-danger w-100">Desconectar del PLC</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Referencias a elementos del DOM
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+            const autoReadSwitch = document.getElementById('autoReadSwitch');
+            const db1Value = document.getElementById('db1Value');
+            const valueCard = document.getElementById('valueCard');
+            const connectionIndicator = document.getElementById('connectionIndicator');
+            const connectionStatus = document.getElementById('connectionStatus');
+            const lastUpdateTime = document.getElementById('lastUpdateTime');
+            const dataHistory = document.getElementById('dataHistory');
+            const updateCounter = document.getElementById('updateCounter');
+            
+            let lastRecordedValue = null;
+            let historyData = [];
+            let updateCount = 0;
+            const maxHistorySize = 100;
+            let updateInterval = null;
+            const updateFrequency = 50; // ms (20 veces por segundo)
+            
+            // Mostrar frecuencia de actualización en la UI
+            document.getElementById('updateFrequency').textContent = Math.round(1000 / updateFrequency);
+            
+            // Función para agregar un valor al historial
+            function addToHistory(value, timestamp) {
+                if (value === lastRecordedValue) return;
+                
+                lastRecordedValue = value;
+                
+                // Crear el elemento de historial
+                const historyEntry = document.createElement('div');
+                historyEntry.className = 'data-row';
+                historyEntry.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <span><strong>Valor:</strong> ${value}</span>
+                        <span class="timestamp">${timestamp}</span>
+                    </div>
+                `;
+                
+                // Agregar al inicio del historial
+                dataHistory.insertBefore(historyEntry, dataHistory.firstChild);
+                
+                // Limitar el tamaño del historial
+                historyData.unshift({ value, timestamp });
+                if (historyData.length > maxHistorySize) {
+                    historyData.pop();
+                    if (dataHistory.children.length > maxHistorySize) {
+                        dataHistory.removeChild(dataHistory.lastChild);
+                    }
+                }
+            }
+            
+            // Función para actualizar datos del PLC
+            function updatePlcData() {
+                fetch('/api/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        // Actualizar estado de conexión
+                        const isConnected = data.connected === true;
+                        connectionIndicator.className = isConnected 
+                            ? 'status-indicator status-connected' 
+                            : 'status-indicator status-disconnected';
+                        connectionStatus.textContent = isConnected ? 'Conectado' : 'Desconectado';
+                        
+                        // Actualizar valor de DB1
+                        if (data.lastValue !== null && data.lastValue !== undefined) {
+                            const oldValue = db1Value.textContent;
+                            
+                            // Actualizar siempre el contador
+                            updateCount++;
+                            updateCounter.textContent = `Actualizaciones: ${updateCount}`;
+                            
+                            // Cambio visual solo si el valor ha cambiado
+                            if (oldValue !== data.lastValue.toString()) {
+                                db1Value.textContent = data.lastValue;
+                                db1Value.classList.add('pulsing');
+                                
+                                setTimeout(() => {
+                                    db1Value.classList.remove('pulsing');
+                                }, 500);
+                                
+                                valueCard.classList.add('value-update');
+                                setTimeout(() => {
+                                    valueCard.classList.remove('value-update');
+                                }, 300);
+                                
+                                // Actualizar tiempo
+                                const now = new Date();
+                                const timeString = now.toLocaleTimeString() + '.' + 
+                                    String(now.getMilliseconds()).padStart(3, '0');
+                                lastUpdateTime.textContent = 'Última actualización: ' + timeString;
+                                
+                                // Agregar al historial
+                                addToHistory(data.lastValue, timeString);
+                            } else {
+                                // Actualizar el tiempo aunque el valor no cambie
+                                const now = new Date();
+                                lastUpdateTime.textContent = 'Última actualización: ' + 
+                                    now.toLocaleTimeString() + '.' + 
+                                    String(now.getMilliseconds()).padStart(3, '0');
+                            }
+                        } else if (isConnected) {
+                            // Si no hay valor pero estamos conectados, solicitar una lectura
+                            fetch('/readDB1')
+                                .then(response => response.json())
+                                .then(readData => {
+                                    if (readData.success && readData.value) {
+                                        db1Value.textContent = readData.value;
+                                        db1Value.classList.add('pulsing');
+                                        
+                                        setTimeout(() => {
+                                            db1Value.classList.remove('pulsing');
+                                        }, 500);
+                                        
+                                        updateCount++;
+                                        updateCounter.textContent = `Actualizaciones: ${updateCount}`;
+                                        
+                                        const now = new Date();
+                                        const timeString = now.toLocaleTimeString() + '.' + 
+                                            String(now.getMilliseconds()).padStart(3, '0');
+                                        lastUpdateTime.textContent = 'Última actualización: ' + timeString;
+                                        
+                                        // Agregar al historial
+                                        addToHistory(readData.value, timeString);
+                                    }
+                                });
+                        }
+                        
+                        // Mostrar errores si hay
+                        if (data.lastError) {
+                            if (!document.getElementById('errorContainer')) {
+                                const errorContainer = document.createElement('div');
+                                errorContainer.id = 'errorContainer';
+                                errorContainer.innerHTML = `
+                                    <div class="alert alert-danger mt-3">
+                                        <strong>Error:</strong> <span id="errorMessage">${data.lastError}</span>
+                                    </div>
+                                `;
+                                document.querySelector('.card-body').appendChild(errorContainer);
+                            } else {
+                                document.getElementById('errorMessage').textContent = data.lastError;
+                            }
+                        } else {
+                            const errorContainer = document.getElementById('errorContainer');
+                            if (errorContainer) {
+                                errorContainer.remove();
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+            
+            // Función para iniciar la actualización periódica
+            function startAutoRefresh() {
+                if (updateInterval === null) {
+                    updateInterval = setInterval(updatePlcData, updateFrequency);
+                    console.log(`Iniciando actualización automática cada ${updateFrequency}ms`);
+                }
+            }
+            
+            // Función para detener la actualización periódica
+            function stopAutoRefresh() {
+                if (updateInterval !== null) {
+                    clearInterval(updateInterval);
+                    updateInterval = null;
+                    console.log('Deteniendo actualización automática');
+                }
+            }
+            
+            // Eventos de botones
+            connectBtn.addEventListener('click', function() {
+                console.log('Conectando al PLC...');
+                fetch('/connect', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            updatePlcData();
+                            fetch('/api/enableAutoRead', { method: 'POST' });
+                            autoReadSwitch.checked = true;
+                            console.log('Conexión exitosa, lectura automática activada');
+                        }
+                    });
+            });
+            
+            disconnectBtn.addEventListener('click', function() {
+                console.log('Desconectando del PLC...');
+                fetch('/disconnect', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        updatePlcData();
+                        console.log('Desconexión completada');
+                    });
+            });
+            
+            clearHistoryBtn.addEventListener('click', function() {
+                dataHistory.innerHTML = '';
+                historyData = [];
+                lastRecordedValue = null;
+                console.log('Historial limpiado');
+            });
+            
+            // Control de la lectura automática
+            autoReadSwitch.addEventListener('change', function() {
+                if (this.checked) {
+                    console.log('Activando lectura automática');
+                    fetch('/api/enableAutoRead', { method: 'POST' });
+                    startAutoRefresh();
+                } else {
+                    console.log('Desactivando lectura automática');
+                    fetch('/api/disableAutoRead', { method: 'POST' });
+                    stopAutoRefresh();
+                }
+            });
+            
+            // Función para iniciar todo automáticamente
+            function autoStart() {
+                console.log('Iniciando arranque automático...');
+                
+                // Comprobar estado de conexión
+                fetch('/api/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Estado actual:', data);
+                        
+                        if (!data.connected) {
+                            console.log('No conectado, intentando conexión automática');
+                            // Conectar automáticamente
+                            return fetch('/connect', { method: 'POST' })
+                                .then(response => response.json());
+                        } else {
+                            console.log('Ya conectado');
+                            return { success: true };
+                        }
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            console.log('Habilitando lectura automática');
+                            // Habilitar lectura automática
+                            return fetch('/api/enableAutoRead', { method: 'POST' });
+                        }
+                    })
+                    .then(() => {
+                        console.log('Solicitando lectura inicial de DB1');
+                        // Leer DB1 explícitamente para tener un valor inicial
+                        return fetch('/readDB1');
+                    })
+                    .then(() => {
+                        console.log('Iniciando actualización periódica');
+                        // Actualizar una vez inmediatamente
+                        updatePlcData();
+                        
+                        // Iniciar actualización periódica
+                        if (autoReadSwitch.checked) {
+                            startAutoRefresh();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error en arranque automático:', error);
+                        // Intentar de todos modos
+                        updatePlcData();
+                        if (autoReadSwitch.checked) {
+                            startAutoRefresh();
+                        }
+                    });
+            }
+            
+            // Iniciar todo automáticamente
+            autoStart();
+        });
+    </script>
+</body>
+</html>

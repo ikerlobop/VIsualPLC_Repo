@@ -1,0 +1,4 @@
+com\ejemplo\controller\CustomErrorController.class
+com\ejemplo\service\PlcService.class
+com\ejemplo\PlcApplication.class
+com\ejemplo\controller\PlcController.class
