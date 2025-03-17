@@ -8,19 +8,20 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { 
-            overflow: hidden; 
             background-color: #1e1e1e; 
             color: #d4d4d4;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
             height: 100vh;
+            overflow: hidden; /* Solo para el body principal */
         }
         
         .ide-container {
             display: flex;
             height: 100vh;
             width: 100%;
+            overflow: hidden; /* Contiene los paneles principales */
         }
         
         /* Panel de variables (izquierda) */
@@ -28,9 +29,10 @@
             width: 300px;
             background-color: #252526;
             border-right: 1px solid #404040;
-            overflow-y: auto;
             padding: 10px 0;
             flex-shrink: 0;
+            overflow-y: auto; /* Añadir barra de desplazamiento vertical */
+            max-height: 100vh; /* Asegurar que no crece más allá de la ventana */
         }
         
         .panel-header {
@@ -51,6 +53,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: pointer;
         }
         
         .variable-item:hover {
@@ -76,6 +79,7 @@
             background-color: #1e1e1e;
             display: flex;
             flex-direction: column;
+            overflow: hidden; /* Contiene el área principal */
         }
         
         .toolbar {
@@ -118,6 +122,7 @@
             grid-template-columns: 1fr 1fr;
             grid-gap: 15px;
             flex-grow: 1;
+            grid-auto-rows: min-content;
         }
         
         .chart-card {
@@ -161,7 +166,7 @@
         
         .chart-body {
             padding: 10px;
-            height: 200px;
+            height: 300px; /* Aumentado de 200px a 300px */
         }
         
         .settings-panel {
@@ -198,6 +203,133 @@
         .type-int { color: #569cd6; }
         .type-float { color: #b5cea8; }
         .type-bool { color: #4fc1ff; }
+
+        /* Nuevos estilos para las gráficas ocultas */
+        .chart-card.hidden {
+            display: none;
+        }
+        
+        /* Estilo para variables ocultas */
+        .variable-item.hidden {
+            opacity: 0.5;
+        }
+        
+        /* Estilo para el botón de eliminar */
+        .close-chart-btn {
+            background-color: transparent;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            margin-left: 5px;
+            font-size: 14px;
+            padding: 2px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-chart-btn:hover {
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 3px;
+        }
+        
+        /* Estilo para el botón de expandir/contraer */
+        .expand-chart-btn {
+            background-color: transparent;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            margin-left: 5px;
+            font-size: 14px;
+            padding: 2px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .expand-chart-btn:hover {
+            background-color: #2980b9;
+            color: white;
+            border-radius: 3px;
+        }
+        
+        /* Estilos para gráficas expandidas */
+        .chart-card.expanded {
+            position: fixed;
+            top: 50px;
+            left: 50px;
+            right: 50px;
+            bottom: 50px;
+            width: auto;
+            height: auto;
+            z-index: 1000;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+        }
+        
+        .chart-card.expanded .chart-body {
+            height: calc(100% - 40px);
+        }
+        
+        /* Overlay para cuando una gráfica está expandida */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 999;
+        }
+        
+        .overlay.active {
+            display: block;
+        }
+        
+        /* Controles de redimensionamiento */
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #555;
+            border-radius: 50%;
+            z-index: 1001;
+            display: none;
+        }
+        
+        .chart-card.expanded .resize-handle {
+            display: block;
+        }
+        
+        .resize-handle.top-left {
+            top: -5px;
+            left: -5px;
+            cursor: nw-resize;
+        }
+        
+        .resize-handle.top-right {
+            top: -5px;
+            right: -5px;
+            cursor: ne-resize;
+        }
+        
+        .resize-handle.bottom-left {
+            bottom: -5px;
+            left: -5px;
+            cursor: sw-resize;
+        }
+        
+        .resize-handle.bottom-right {
+            bottom: -5px;
+            right: -5px;
+            cursor: se-resize;
+        }
+        
+        .chart-controls {
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -209,17 +341,17 @@
                 <span class="status-indicator" id="connectionStatus"></span>
             </div>
             
-            <div class="variable-item">
+            <div class="variable-item" id="variableDb" data-chart="db">
                 <div class="variable-name">DB2.DBW0 <span class="type-float">(float)</span></div>
                 <div class="variable-value" id="db1Value">--</div>
             </div>
             
-            <div class="variable-item">
+            <div class="variable-item" id="variableSim1" data-chart="sim1">
                 <div class="variable-name">Variable 1 <span class="type-int">(int)</span></div>
                 <div class="variable-value" id="simValue1">--</div>
             </div>
             
-            <div class="variable-item">
+            <div class="variable-item" id="variableSim2" data-chart="sim2">
                 <div class="variable-name">Variable 2 <span class="type-int">(int)</span></div>
                 <div class="variable-value" id="simValue2">--</div>
             </div>
@@ -253,48 +385,166 @@
                 <div class="fps-counter">Actualización: <span id="updateRateDisplay">100</span> ms</div>
             </div>
             
-            <div class="charts-container">
-                <!-- Gráfica principal PLC -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        DB2.DBW0 - Tendencia
-                        <button class="chart-control-btn" id="toggleDB" title="Reproducir/Pausar">
-                            <span class="control-icon">⏸️</span>
-                        </button>
+            <!-- Contenedor principal con dos secciones: gráficas y resumen -->
+            <div style="display: flex; gap: 15px; height: calc(100vh - 100px); overflow: hidden;">
+                <!-- Contenedor de gráficas (ajustado para dejar espacio al resumen) -->
+                <div class="charts-container" style="flex-grow: 1; grid-template-columns: 1fr; grid-auto-rows: minmax(350px, auto); overflow-y: auto; padding-right: 5px;">
+                    <!-- Gráfica principal PLC -->
+                    <div class="chart-card" id="chartCardDb">
+                        <div class="chart-header">
+                            DB2.DBW0 - Tendencia
+                            <div class="chart-controls">
+                                <button class="chart-control-btn" id="toggleDB" title="Reproducir/Pausar">
+                                    <span class="control-icon">⏸️</span>
+                                </button>
+                                <button class="close-chart-btn" id="closeDB" title="Ocultar gráfica">
+                                    <span>✕</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="mainChartDB"></canvas>
+                        </div>
                     </div>
-                    <div class="chart-body">
-                        <canvas id="mainChartDB"></canvas>
+                    
+                    <!-- Gráfica Variable 1 -->
+                    <div class="chart-card" id="chartCardSim1">
+                        <div class="chart-header">
+                            Variable 1 - Tendencia
+                            <div class="chart-controls">
+                                <button class="chart-control-btn" id="toggleSim1" title="Reproducir/Pausar">
+                                    <span class="control-icon">⏸️</span>
+                                </button>
+                                <button class="close-chart-btn" id="closeSim1" title="Ocultar gráfica">
+                                    <span>✕</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="mainChartSim1"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Gráfica Variable 2 -->
+                    <div class="chart-card" id="chartCardSim2">
+                        <div class="chart-header">
+                            Variable 2 - Tendencia
+                            <div class="chart-controls">
+                                <button class="chart-control-btn" id="toggleSim2" title="Reproducir/Pausar">
+                                    <span class="control-icon">⏸️</span>
+                                </button>
+                                <button class="close-chart-btn" id="closeSim2" title="Ocultar gráfica">
+                                    <span>✕</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="mainChartSim2"></canvas>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Gráfica Variable 1 -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        Variable 1 - Tendencia
-                        <button class="chart-control-btn" id="toggleSim1" title="Reproducir/Pausar">
-                            <span class="control-icon">⏸️</span>
-                        </button>
+                <!-- Panel de resumen fijo a la derecha -->
+                <div class="chart-card" style="width: 280px; flex-shrink: 0; max-height: calc(100vh - 100px); overflow-y: auto;">
+                    <div class="chart-header" style="position: sticky; top: 0; z-index: 10;">Resumen</div>
+                    <div class="chart-body" style="overflow-y: visible; height: auto;">
+                        <table class="table table-sm" style="color: #d4d4d4; font-size: 12px;">
+                            <thead style="position: sticky; top: 0; background-color: #252526;">
+                                <tr>
+                                    <th>Variable</th>
+                                    <th>Min</th>
+                                    <th>Max</th>
+                                    <th>Promedio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr id="resumenDb">
+                                    <td>DB2.DBW0</td>
+                                    <td id="db1Min">--</td>
+                                    <td id="db1Max">--</td>
+                                    <td id="db1Avg">--</td>
+                                </tr>
+                                <tr id="resumenSim1">
+                                    <td>Variable 1</td>
+                                    <td id="sim1Min">--</td>
+                                    <td id="sim1Max">--</td>
+                                    <td id="sim1Avg">--</td>
+                                </tr>
+                                <tr id="resumenSim2">
+                                    <td>Variable 2</td>
+                                    <td id="sim2Min">--</td>
+                                    <td id="sim2Max">--</td>
+                                    <td id="sim2Avg">--</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="chart-body">
-                        <canvas id="mainChartSim1"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay para cuando una gráfica está expandida -->
+    <div class="overlay" id="overlay"></div>    <span class="control-icon">⏸️</span>
+                                </button>
+                                <button class="expand-chart-btn" id="expandDB" title="Expandir gráfica">
+                                    <span>⤢</span>
+                                </button>
+                                <button class="close-chart-btn" id="closeDB" title="Ocultar gráfica">
+                                    <span>✕</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="mainChartDB"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Gráfica Variable 1 -->
+                    <div class="chart-card" id="chartCardSim1">
+                        <div class="chart-header">
+                            Variable 1 - Tendencia
+                            <div class="chart-controls">
+                                <button class="chart-control-btn" id="toggleSim1" title="Reproducir/Pausar">
+                                    <span class="control-icon">⏸️</span>
+                                </button>
+                                <button class="expand-chart-btn" id="expandSim1" title="Expandir gráfica">
+                                    <span>⤢</span>
+                                </button>
+                                <button class="close-chart-btn" id="closeSim1" title="Ocultar gráfica">
+                                    <span>✕</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="mainChartSim1"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Gráfica Variable 2 -->
+                    <div class="chart-card" id="chartCardSim2">
+                        <div class="chart-header">
+                            Variable 2 - Tendencia
+                            <div class="chart-controls">
+                                <button class="chart-control-btn" id="toggleSim2" title="Reproducir/Pausar">
+                                    <span class="control-icon">⏸️</span>
+                                </button>
+                                <button class="expand-chart-btn" id="expandSim2" title="Expandir gráfica">
+                                    <span>⤢</span>
+                                </button>
+                                <button class="close-chart-btn" id="closeSim2" title="Ocultar gráfica">
+                                    <span>✕</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="mainChartSim2"></canvas>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Gráfica Variable 2 -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        Variable 2 - Tendencia
-                        <button class="chart-control-btn" id="toggleSim2" title="Reproducir/Pausar">
-                            <span class="control-icon">⏸️</span>
-                        </button>
-                    </div>
-                    <div class="chart-body">
-                        <canvas id="mainChartSim2"></canvas>
-                    </div>
-                </div>
-                
-                <!-- Panel de resumen -->
-                <div class="chart-card">
+                <!-- Panel de resumen fijo a la derecha -->
+                <div class="chart-card" style="width: 280px; flex-shrink: 0; align-self: flex-start; position: sticky; top: 15px;">
                     <div class="chart-header">Resumen</div>
                     <div class="chart-body" style="overflow-y: auto;">
                         <table class="table table-sm" style="color: #d4d4d4; font-size: 12px;">
@@ -307,19 +557,19 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
+                                <tr id="resumenDb">
                                     <td>DB2.DBW0</td>
                                     <td id="db1Min">--</td>
                                     <td id="db1Max">--</td>
                                     <td id="db1Avg">--</td>
                                 </tr>
-                                <tr>
+                                <tr id="resumenSim1">
                                     <td>Variable 1</td>
                                     <td id="sim1Min">--</td>
                                     <td id="sim1Max">--</td>
                                     <td id="sim1Avg">--</td>
                                 </tr>
-                                <tr>
+                                <tr id="resumenSim2">
                                     <td>Variable 2</td>
                                     <td id="sim2Min">--</td>
                                     <td id="sim2Max">--</td>
@@ -345,6 +595,24 @@
         const updateRateDisplay = document.getElementById('updateRateDisplay');
         const applyRateBtn = document.getElementById('applyRateBtn');
         
+        // Referencias a tarjetas de gráficas
+        const chartCardDb = document.getElementById('chartCardDb');
+        const chartCardSim1 = document.getElementById('chartCardSim1');
+        const chartCardSim2 = document.getElementById('chartCardSim2');
+        
+        // Referencias a variables para doble clic
+        const variableDb = document.getElementById('variableDb');
+        const variableSim1 = document.getElementById('variableSim1');
+        const variableSim2 = document.getElementById('variableSim2');
+        
+        // Referencias a filas de resumen
+        const resumenDb = document.getElementById('resumenDb');
+        const resumenSim1 = document.getElementById('resumenSim1');
+        const resumenSim2 = document.getElementById('resumenSim2');
+        
+        // Referencias al overlay
+        const overlay = document.getElementById('overlay');
+        
         // Estadísticas
         const db1Min = document.getElementById('db1Min');
         const db1Max = document.getElementById('db1Max');
@@ -369,6 +637,20 @@
             db: true,
             sim1: true,
             sim2: true
+        };
+        
+        // Estado de visibilidad de las gráficas (true = visible, false = oculta)
+        let chartVisibility = {
+            db: true,
+            sim1: true,
+            sim2: true
+        };
+        
+        // Estado de expansión de gráficas (true = expandida, false = normal)
+        let expandedState = {
+            db: false,
+            sim1: false,
+            sim2: false
         };
         
         // Datos para estadísticas
@@ -505,15 +787,23 @@
         }
 
         function initializeCharts() {
+            console.log("Inicializando gráficas...");
             // Crear gráficas principales
-            const ctxMainDB = document.getElementById('mainChartDB').getContext('2d');
-            window.mainChartDB = createMainChart(ctxMainDB, 'blue', 'DB2.DBW0');
-            
-            const ctxMainSim1 = document.getElementById('mainChartSim1').getContext('2d');
-            window.mainChartSim1 = createMainChart(ctxMainSim1, 'green', 'Variable 1');
-            
-            const ctxMainSim2 = document.getElementById('mainChartSim2').getContext('2d');
-            window.mainChartSim2 = createMainChart(ctxMainSim2, 'red', 'Variable 2');
+            try {
+                const ctxMainDB = document.getElementById('mainChartDB').getContext('2d');
+                window.mainChartDB = createMainChart(ctxMainDB, 'blue', 'DB2.DBW0');
+                console.log("Gráfica DB creada:", window.mainChartDB);
+                
+                const ctxMainSim1 = document.getElementById('mainChartSim1').getContext('2d');
+                window.mainChartSim1 = createMainChart(ctxMainSim1, 'green', 'Variable 1');
+                console.log("Gráfica Sim1 creada:", window.mainChartSim1);
+                
+                const ctxMainSim2 = document.getElementById('mainChartSim2').getContext('2d');
+                window.mainChartSim2 = createMainChart(ctxMainSim2, 'red', 'Variable 2');
+                console.log("Gráfica Sim2 creada:", window.mainChartSim2);
+            } catch (error) {
+                console.error("Error al inicializar gráficas:", error);
+            }
         }
 
         function createMainChart(ctx, color, label) {
@@ -571,8 +861,8 @@
         }
 
         function updateChartData(value, key) {
-            // Solo actualizar si la gráfica no está pausada
-            if (!chartStatus[key]) return;
+            // Solo actualizar si la gráfica no está pausada y está visible
+            if (!chartStatus[key] || !chartVisibility[key]) return;
             
             let chart = null;
             if (key === 'db') chart = window.mainChartDB;
@@ -665,16 +955,83 @@
             }
         }
         
-        document.addEventListener('DOMContentLoaded', () => {
+        // Función para ocultar o mostrar una gráfica
+        function toggleChartVisibility(key) {
+            chartVisibility[key] = !chartVisibility[key];
+            
+            let chartCard, variableItem, resumenRow;
+            if (key === 'db') {
+                chartCard = chartCardDb;
+                variableItem = variableDb;
+                resumenRow = resumenDb;
+            } else if (key === 'sim1') {
+                chartCard = chartCardSim1;
+                variableItem = variableSim1;
+                resumenRow = resumenSim1;
+            } else if (key === 'sim2') {
+                chartCard = chartCardSim2;
+                variableItem = variableSim2;
+                resumenRow = resumenSim2;
+            }
+            
+            if (chartCard && variableItem && resumenRow) {
+                if (chartVisibility[key]) {
+                    // Mostrar la gráfica y su información
+                    chartCard.classList.remove('hidden');
+                    variableItem.classList.remove('hidden');
+                    resumenRow.style.display = ''; // Mostrar en tabla de resumen
+                } else {
+                    // Ocultar la gráfica y su información
+                    chartCard.classList.add('hidden');
+                    variableItem.classList.add('hidden');
+                    resumenRow.style.display = 'none'; // Ocultar de tabla de resumen
+                }
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
             initializeCharts();
             startAutoRefresh();
             
             // Añadir event listeners para los botones de play/pausa
-            document.getElementById('toggleDB').addEventListener('click', () => toggleChartStatus('db'));
-            document.getElementById('toggleSim1').addEventListener('click', () => toggleChartStatus('sim1'));
-            document.getElementById('toggleSim2').addEventListener('click', () => toggleChartStatus('sim2'));
+            document.getElementById('toggleDB').addEventListener('click', function() {
+                toggleChartStatus('db');
+            });
+            
+            document.getElementById('toggleSim1').addEventListener('click', function() {
+                toggleChartStatus('sim1');
+            });
+            
+            document.getElementById('toggleSim2').addEventListener('click', function() {
+                toggleChartStatus('sim2');
+            });
+            
+            // Añadir event listeners para los botones de cerrar
+            document.getElementById('closeDB').addEventListener('click', function() {
+                toggleChartVisibility('db');
+            });
+            
+            document.getElementById('closeSim1').addEventListener('click', function() {
+                toggleChartVisibility('sim1');
+            });
+            
+            document.getElementById('closeSim2').addEventListener('click', function() {
+                toggleChartVisibility('sim2');
+            });
+            
+            // Añadir event listeners para doble clic en las variables
+            variableDb.addEventListener('dblclick', function() {
+                if (!chartVisibility['db']) toggleChartVisibility('db');
+            });
+            
+            variableSim1.addEventListener('dblclick', function() {
+                if (!chartVisibility['sim1']) toggleChartVisibility('sim1');
+            });
+            
+            variableSim2.addEventListener('dblclick', function() {
+                if (!chartVisibility['sim2']) toggleChartVisibility('sim2');
+            });
         });
     </script>
 </body>
-</html> 
- 
+</html>
