@@ -1,411 +1,593 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>PLC Monitor</title>
+    <title>Monitor PLC</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .status-indicator {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 10px;
+        body { 
+            overflow: hidden; 
+            background-color: #1e1e1e; 
+            color: #d4d4d4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
         }
-        .status-connected {
-            background-color: #28a745;
+        
+        .ide-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
         }
-        .status-disconnected {
-            background-color: #dc3545;
-        }
-        .value-card {
-            transition: background-color 0.3s ease;
-        }
-        .value-update {
-            background-color: #fff3cd;
-        }
-        .data-container {
-            height: 200px;
+        
+        /* Panel de variables (izquierda) */
+        .variables-panel {
+            width: 300px;
+            background-color: #252526;
+            border-right: 1px solid #404040;
             overflow-y: auto;
+            padding: 10px 0;
+            flex-shrink: 0;
         }
-        .data-row {
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
+        
+        .panel-header {
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #cccccc;
+            border-bottom: 1px solid #404040;
+            background-color: #333333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .timestamp {
-            font-size: 0.8em;
-            color: #666;
+        
+        .variable-item {
+            padding: 8px 15px;
+            border-bottom: 1px solid #383838;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+        
+        .variable-item:hover {
+            background-color: #2a2d2e;
+        }
+        
+        .variable-name {
+            font-size: 13px;
+            color: #9cdcfe;
+        }
+        
+        .variable-value {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ce9178;
+            font-family: 'Consolas', monospace;
+        }
+        
+        /* Panel principal (derecha) */
+        .main-panel {
+            flex-grow: 1;
+            padding: 15px;
+            background-color: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .toolbar {
+            padding: 10px;
+            background-color: #333333;
+            border-bottom: 1px solid #404040;
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 10px;
+            background-color: #555;
+        }
+        
+        .status-active {
+            background-color: #3ca45c;
+            animation: pulse 1s infinite;
+        }
+        
         @keyframes pulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-          100% { transform: scale(1); }
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
         }
-        .pulsing {
-          animation: pulse 0.5s;
+        
+        .fps-counter {
+            font-size: 12px;
+            color: #888;
+            margin-left: 15px;
         }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-gap: 15px;
+            flex-grow: 1;
+        }
+        
+        .chart-card {
+            background-color: #252526;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .chart-header {
+            padding: 10px;
+            font-size: 13px;
+            background-color: #333333;
+            border-bottom: 1px solid #404040;
+            color: #cccccc;
+        }
+        
+        .chart-body {
+            padding: 10px;
+            height: 200px;
+        }
+        
+        .settings-panel {
+            margin-top: 15px;
+            background-color: #252526;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            padding: 15px;
+        }
+        
+        /* Estilo para controles */
+        input[type="number"] {
+            background-color: #3c3c3c;
+            border: 1px solid #555;
+            color: #cccccc;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        
+        button {
+            background-color: #0e639c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #1177bb;
+        }
+        
+        /* Variable tipos */
+        .type-int { color: #569cd6; }
+        .type-float { color: #b5cea8; }
+        .type-bool { color: #4fc1ff; }
     </style>
 </head>
 <body>
-    <div class="container mt-4">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h3>Monitor PLC en Tiempo Real</h3>
+    <div class="ide-container">
+        <!-- Panel de variables (izquierda) -->
+        <div class="variables-panel">
+            <div class="panel-header">
+                Variables PLC
+                <span class="status-indicator" id="connectionStatus"></span>
             </div>
-            <div class="card-body">
-                <!-- Estado de conexión -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="card h-100">
-                            <div class="card-header">
-                                Estado de la conexión
-                            </div>
-                            <div class="card-body">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div id="connectionIndicator" th:class="${connected ? 'status-indicator status-connected' : 'status-indicator status-disconnected'}"></div>
-                                    <span id="connectionStatus" th:text="${connected ? 'Conectado' : 'Desconectado'}">Estado</span>
-                                </div>
-                                <p><strong>Dirección:</strong> <span th:text="${connectionString}">s7://192.168.2.12:102</span></p>
-                                <div id="errorContainer" th:if="${lastError != null && !lastError.isEmpty()}">
-                                    <div class="alert alert-danger mt-3">
-                                        <strong>Error:</strong> <span id="errorMessage" th:text="${lastError}"></span>
-                                    </div>
-                                </div>
-                                <div class="mt-3">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="autoReadSwitch" checked>
-                                        <label class="form-check-label" for="autoReadSwitch">Actualización en tiempo real</label>
-                                    </div>
-                                    <div class="mt-2">
-                                        <small class="text-muted">Velocidad de actualización: <span id="updateFrequency">10</span> veces/segundo</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Valor actual -->
-                    <div class="col-md-6">
-                        <div class="card h-100 value-card" id="valueCard">
-                            <div class="card-header">
-                                Valor actual (DB2.DBW0)
-                            </div>
-                            <div class="card-body text-center">
-                                <div id="plcData">
-                                    <div class="display-1 mb-3 fw-bold" id="db1Value">--</div>
-                                    <div>
-                                        <small id="lastUpdateTime" class="text-muted">Última actualización: --</small>
-                                    </div>
-                                    <div class="mt-3">
-                                        <small id="updateCounter" class="text-muted">Actualizaciones: 0</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            
+            <div class="variable-item">
+                <div class="variable-name">DB2.DBW0 <span class="type-float">(float)</span></div>
+                <div class="variable-value" id="db1Value">--</div>
+            </div>
+            
+            <div class="variable-item">
+                <div class="variable-name">Variable 1 <span class="type-int">(int)</span></div>
+                <div class="variable-value" id="simValue1">--</div>
+            </div>
+            
+            <div class="variable-item">
+                <div class="variable-name">Variable 2 <span class="type-int">(int)</span></div>
+                <div class="variable-value" id="simValue2">--</div>
+            </div>
+            
+            <!-- Sección de configuración -->
+            <div class="panel-header" style="margin-top: 20px;">Configuración</div>
+            
+            <div style="padding: 15px;">
+                <div style="margin-bottom: 10px;">
+                    <label for="updateRateInput" style="display: block; margin-bottom: 5px; font-size: 12px;">Intervalo (ms):</label>
+                    <div style="display: flex;">
+                        <input type="number" id="updateRateInput" min="1" max="5000" value="100" style="width: 100px;">
+                        <button id="applyRateBtn" style="margin-left: 5px;">Aplicar</button>
                     </div>
                 </div>
                 
-                <!-- Historial de valores -->
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <span>Historial de cambios de valor</span>
-                                <button id="clearHistoryBtn" class="btn btn-sm btn-outline-secondary">Limpiar historial</button>
-                            </div>
-                            <div class="card-body p-0">
-                                <div id="dataHistory" class="data-container p-2">
-                                    <!-- El historial de datos se llenará dinámicamente -->
-                                </div>
-                            </div>
-                        </div>
+                <div style="font-size: 12px; color: #888; margin-top: 20px;">
+                    <div>Actualizaciones/seg: <span id="fpsCounter">0</span></div>
+                    <div style="margin-top: 5px;">Tiempo respuesta: <span id="responseTime">0</span> ms</div>
+                    <div style="margin-top: 15px; font-size: 11px; color: #ffcc00; display: none;" id="performanceWarning">
+                        ⚠️ Atención: Intervalos muy bajos pueden afectar el rendimiento
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel principal (derecha) -->
+        <div class="main-panel">
+            <div class="toolbar">
+                <h5 style="margin: 0;">Monitor PLC</h5>
+                <div class="fps-counter">Actualización: <span id="updateRateDisplay">100</span> ms</div>
+            </div>
+            
+            <div class="charts-container">
+                <!-- Gráfica principal PLC -->
+                <div class="chart-card">
+                    <div class="chart-header">DB2.DBW0 - Tendencia</div>
+                    <div class="chart-body">
+                        <canvas id="mainChartDB"></canvas>
                     </div>
                 </div>
                 
-                <!-- Botones de control -->
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <button id="connectBtn" class="btn btn-success w-100">Conectar al PLC</button>
+                <!-- Gráfica Variable 1 -->
+                <div class="chart-card">
+                    <div class="chart-header">Variable 1 - Tendencia</div>
+                    <div class="chart-body">
+                        <canvas id="mainChartSim1"></canvas>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <button id="disconnectBtn" class="btn btn-danger w-100">Desconectar del PLC</button>
+                </div>
+                
+                <!-- Gráfica Variable 2 -->
+                <div class="chart-card">
+                    <div class="chart-header">Variable 2 - Tendencia</div>
+                    <div class="chart-body">
+                        <canvas id="mainChartSim2"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Panel de resumen -->
+                <div class="chart-card">
+                    <div class="chart-header">Resumen</div>
+                    <div class="chart-body" style="overflow-y: auto;">
+                        <table class="table table-sm" style="color: #d4d4d4; font-size: 12px;">
+                            <thead>
+                                <tr>
+                                    <th>Variable</th>
+                                    <th>Min</th>
+                                    <th>Max</th>
+                                    <th>Promedio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>DB2.DBW0</td>
+                                    <td id="db1Min">--</td>
+                                    <td id="db1Max">--</td>
+                                    <td id="db1Avg">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Variable 1</td>
+                                    <td id="sim1Min">--</td>
+                                    <td id="sim1Max">--</td>
+                                    <td id="sim1Avg">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Variable 2</td>
+                                    <td id="sim2Min">--</td>
+                                    <td id="sim2Max">--</td>
+                                    <td id="sim2Avg">--</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Referencias a elementos del DOM
-            const connectBtn = document.getElementById('connectBtn');
-            const disconnectBtn = document.getElementById('disconnectBtn');
-            const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-            const autoReadSwitch = document.getElementById('autoReadSwitch');
-            const db1Value = document.getElementById('db1Value');
-            const valueCard = document.getElementById('valueCard');
-            const connectionIndicator = document.getElementById('connectionIndicator');
-            const connectionStatus = document.getElementById('connectionStatus');
-            const lastUpdateTime = document.getElementById('lastUpdateTime');
-            const dataHistory = document.getElementById('dataHistory');
-            const updateCounter = document.getElementById('updateCounter');
+        // Referencias a elementos del DOM
+        const db1Value = document.getElementById('db1Value');
+        const simValue1 = document.getElementById('simValue1');
+        const simValue2 = document.getElementById('simValue2');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const fpsCounter = document.getElementById('fpsCounter');
+        const responseTime = document.getElementById('responseTime');
+        const updateRateInput = document.getElementById('updateRateInput');
+        const updateRateDisplay = document.getElementById('updateRateDisplay');
+        const applyRateBtn = document.getElementById('applyRateBtn');
+        
+        // Estadísticas
+        const db1Min = document.getElementById('db1Min');
+        const db1Max = document.getElementById('db1Max');
+        const db1Avg = document.getElementById('db1Avg');
+        const sim1Min = document.getElementById('sim1Min');
+        const sim1Max = document.getElementById('sim1Max');
+        const sim1Avg = document.getElementById('sim1Avg');
+        const sim2Min = document.getElementById('sim2Min');
+        const sim2Max = document.getElementById('sim2Max');
+        const sim2Avg = document.getElementById('sim2Avg');
+        
+        // Variables para el control de actualización
+        let updateInterval = null;
+        let updateRate = 100; // Default: 100ms (10 veces/segundo)
+        let frameCount = 0;
+        let lastFpsUpdate = Date.now();
+        let lastUpdateTime = 0;
+        let useRequestAnimationFrame = false; // Cambiar a true para máxima velocidad
+        
+        // Datos para estadísticas
+        let statsData = {
+            db: { values: [], min: null, max: null, avg: null },
+            sim1: { values: [], min: null, max: null, avg: null },
+            sim2: { values: [], min: null, max: null, avg: null }
+        };
+        
+        const maxDataPoints = 100; // Más puntos para las gráficas principales
+        
+        // Función optimizada para actualizar datos del PLC
+        async function updatePlcData() {
+            const startTime = performance.now();
             
-            let lastRecordedValue = null;
-            let historyData = [];
-            let updateCount = 0;
-            const maxHistorySize = 100;
-            let updateInterval = null;
-            const updateFrequency = 50; // ms (20 veces por segundo)
+            try {
+                const response = await fetch('/api/status', {
+                    method: 'GET',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (!response.ok) throw new Error('Network response error');
+                
+                const data = await response.json();
+                connectionStatus.classList.add('status-active');
+                
+                if (data.lastValue !== null && data.lastValue !== undefined) {
+                    const plcValue = parseFloat(data.lastValue) || 0;
+                    db1Value.textContent = plcValue.toFixed(2);
+                    updateChartData(plcValue, 'db');
+                    updateStats(plcValue, 'db');
+                }
+                
+                // Medir tiempo de respuesta
+                const endTime = performance.now();
+                responseTime.textContent = Math.round(endTime - startTime);
+            } catch (error) {
+                console.error('Error:', error);
+                connectionStatus.classList.remove('status-active');
+            }
             
-            // Mostrar frecuencia de actualización en la UI
-            document.getElementById('updateFrequency').textContent = Math.round(1000 / updateFrequency);
+            // Actualiza contador de FPS
+            frameCount++;
+            const now = Date.now();
+            if (now - lastFpsUpdate >= 1000) { // Cada segundo
+                fpsCounter.textContent = frameCount;
+                frameCount = 0;
+                lastFpsUpdate = now;
+            }
+        }
+
+        function generateRandomValue(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function simulateVariables() {
+            const val1 = generateRandomValue(10, 50);
+            const val2 = generateRandomValue(30, 80);
             
-            // Función para agregar un valor al historial
-            function addToHistory(value, timestamp) {
-                if (value === lastRecordedValue) return;
-                
-                lastRecordedValue = value;
-                
-                // Crear el elemento de historial
-                const historyEntry = document.createElement('div');
-                historyEntry.className = 'data-row';
-                historyEntry.innerHTML = `
-                    <div class="d-flex justify-content-between">
-                        <span><strong>Valor:</strong> ${value}</span>
-                        <span class="timestamp">${timestamp}</span>
-                    </div>
-                `;
-                
-                // Agregar al inicio del historial
-                dataHistory.insertBefore(historyEntry, dataHistory.firstChild);
-                
-                // Limitar el tamaño del historial
-                historyData.unshift({ value, timestamp });
-                if (historyData.length > maxHistorySize) {
-                    historyData.pop();
-                    if (dataHistory.children.length > maxHistorySize) {
-                        dataHistory.removeChild(dataHistory.lastChild);
+            simValue1.textContent = val1;
+            simValue2.textContent = val2;
+            
+            updateChartData(val1, 'sim1');
+            updateChartData(val2, 'sim2');
+            
+            updateStats(val1, 'sim1');
+            updateStats(val2, 'sim2');
+        }
+        
+        // Actualiza estadísticas
+        function updateStats(value, key) {
+            const stats = statsData[key];
+            stats.values.push(value);
+            
+            // Limitar el número de valores para las estadísticas
+            if (stats.values.length > 50) {
+                stats.values.shift();
+            }
+            
+            // Calcular estadísticas
+            stats.min = Math.min(...stats.values);
+            stats.max = Math.max(...stats.values);
+            stats.avg = stats.values.reduce((a, b) => a + b, 0) / stats.values.length;
+            
+            // Actualizar en la UI
+            if (key === 'db') {
+                db1Min.textContent = stats.min.toFixed(2);
+                db1Max.textContent = stats.max.toFixed(2);
+                db1Avg.textContent = stats.avg.toFixed(2);
+            } else if (key === 'sim1') {
+                sim1Min.textContent = stats.min.toFixed(0);
+                sim1Max.textContent = stats.max.toFixed(0);
+                sim1Avg.textContent = stats.avg.toFixed(1);
+            } else if (key === 'sim2') {
+                sim2Min.textContent = stats.min.toFixed(0);
+                sim2Max.textContent = stats.max.toFixed(0);
+                sim2Avg.textContent = stats.avg.toFixed(1);
+            }
+        }
+
+        // Función para actualización con RequestAnimationFrame
+        function animationFrameUpdate() {
+            const now = performance.now();
+            const elapsed = now - lastUpdateTime;
+            
+            if (elapsed >= updateRate) {
+                lastUpdateTime = now;
+                updatePlcData();
+                simulateVariables();
+            }
+            
+            requestAnimationFrame(animationFrameUpdate);
+        }
+
+        // Función para actualización con setInterval
+        function startIntervalUpdate() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            
+            updateInterval = setInterval(() => {
+                updatePlcData();
+                simulateVariables();
+            }, updateRate);
+        }
+
+        function startAutoRefresh() {
+            if (useRequestAnimationFrame) {
+                lastUpdateTime = performance.now();
+                requestAnimationFrame(animationFrameUpdate);
+            } else {
+                startIntervalUpdate();
+            }
+        }
+
+        function initializeCharts() {
+            // Crear gráficas principales
+            const ctxMainDB = document.getElementById('mainChartDB').getContext('2d');
+            window.mainChartDB = createMainChart(ctxMainDB, 'blue', 'DB2.DBW0');
+            
+            const ctxMainSim1 = document.getElementById('mainChartSim1').getContext('2d');
+            window.mainChartSim1 = createMainChart(ctxMainSim1, 'green', 'Variable 1');
+            
+            const ctxMainSim2 = document.getElementById('mainChartSim2').getContext('2d');
+            window.mainChartSim2 = createMainChart(ctxMainSim2, 'red', 'Variable 2');
+        }
+
+        function createMainChart(ctx, color, label) {
+            // Generar etiquetas de tiempo para el eje X
+            const labels = Array(maxDataPoints).fill('').map((_, i) => {
+                return `-${(maxDataPoints - i) * (updateRate / 1000)}s`;
+            });
+            
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{ 
+                        label: label,
+                        data: Array(maxDataPoints).fill(null), 
+                        borderColor: color, 
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false, // Desactivar animaciones para mejor rendimiento
+                    scales: { 
+                        x: { 
+                            grid: {
+                                color: '#333333'
+                            },
+                            ticks: {
+                                color: '#888888',
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 6
+                            }
+                        }, 
+                        y: { 
+                            grid: {
+                                color: '#333333'
+                            },
+                            ticks: {
+                                color: '#888888'
+                            }
+                        } 
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
                     }
                 }
-            }
-            
-            // Función para actualizar datos del PLC
-            function updatePlcData() {
-                fetch('/api/status')
-                    .then(response => response.json())
-                    .then(data => {
-                        // Actualizar estado de conexión
-                        const isConnected = data.connected === true;
-                        connectionIndicator.className = isConnected 
-                            ? 'status-indicator status-connected' 
-                            : 'status-indicator status-disconnected';
-                        connectionStatus.textContent = isConnected ? 'Conectado' : 'Desconectado';
-                        
-                        // Actualizar valor de DB1
-                        if (data.lastValue !== null && data.lastValue !== undefined) {
-                            const oldValue = db1Value.textContent;
-                            
-                            // Actualizar siempre el contador
-                            updateCount++;
-                            updateCounter.textContent = `Actualizaciones: ${updateCount}`;
-                            
-                            // Cambio visual solo si el valor ha cambiado
-                            if (oldValue !== data.lastValue.toString()) {
-                                db1Value.textContent = data.lastValue;
-                                db1Value.classList.add('pulsing');
-                                
-                                setTimeout(() => {
-                                    db1Value.classList.remove('pulsing');
-                                }, 500);
-                                
-                                valueCard.classList.add('value-update');
-                                setTimeout(() => {
-                                    valueCard.classList.remove('value-update');
-                                }, 300);
-                                
-                                // Actualizar tiempo
-                                const now = new Date();
-                                const timeString = now.toLocaleTimeString() + '.' + 
-                                    String(now.getMilliseconds()).padStart(3, '0');
-                                lastUpdateTime.textContent = 'Última actualización: ' + timeString;
-                                
-                                // Agregar al historial
-                                addToHistory(data.lastValue, timeString);
-                            } else {
-                                // Actualizar el tiempo aunque el valor no cambie
-                                const now = new Date();
-                                lastUpdateTime.textContent = 'Última actualización: ' + 
-                                    now.toLocaleTimeString() + '.' + 
-                                    String(now.getMilliseconds()).padStart(3, '0');
-                            }
-                        } else if (isConnected) {
-                            // Si no hay valor pero estamos conectados, solicitar una lectura
-                            fetch('/readDB1')
-                                .then(response => response.json())
-                                .then(readData => {
-                                    if (readData.success && readData.value) {
-                                        db1Value.textContent = readData.value;
-                                        db1Value.classList.add('pulsing');
-                                        
-                                        setTimeout(() => {
-                                            db1Value.classList.remove('pulsing');
-                                        }, 500);
-                                        
-                                        updateCount++;
-                                        updateCounter.textContent = `Actualizaciones: ${updateCount}`;
-                                        
-                                        const now = new Date();
-                                        const timeString = now.toLocaleTimeString() + '.' + 
-                                            String(now.getMilliseconds()).padStart(3, '0');
-                                        lastUpdateTime.textContent = 'Última actualización: ' + timeString;
-                                        
-                                        // Agregar al historial
-                                        addToHistory(readData.value, timeString);
-                                    }
-                                });
-                        }
-                        
-                        // Mostrar errores si hay
-                        if (data.lastError) {
-                            if (!document.getElementById('errorContainer')) {
-                                const errorContainer = document.createElement('div');
-                                errorContainer.id = 'errorContainer';
-                                errorContainer.innerHTML = `
-                                    <div class="alert alert-danger mt-3">
-                                        <strong>Error:</strong> <span id="errorMessage">${data.lastError}</span>
-                                    </div>
-                                `;
-                                document.querySelector('.card-body').appendChild(errorContainer);
-                            } else {
-                                document.getElementById('errorMessage').textContent = data.lastError;
-                            }
-                        } else {
-                            const errorContainer = document.getElementById('errorContainer');
-                            if (errorContainer) {
-                                errorContainer.remove();
-                            }
-                        }
-                    })
-                    .catch(error => console.error('Error:', error));
-            }
-            
-            // Función para iniciar la actualización periódica
-            function startAutoRefresh() {
-                if (updateInterval === null) {
-                    updateInterval = setInterval(updatePlcData, updateFrequency);
-                    console.log(`Iniciando actualización automática cada ${updateFrequency}ms`);
-                }
-            }
-            
-            // Función para detener la actualización periódica
-            function stopAutoRefresh() {
-                if (updateInterval !== null) {
-                    clearInterval(updateInterval);
-                    updateInterval = null;
-                    console.log('Deteniendo actualización automática');
-                }
-            }
-            
-            // Eventos de botones
-            connectBtn.addEventListener('click', function() {
-                console.log('Conectando al PLC...');
-                fetch('/connect', { method: 'POST' })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            updatePlcData();
-                            fetch('/api/enableAutoRead', { method: 'POST' });
-                            autoReadSwitch.checked = true;
-                            console.log('Conexión exitosa, lectura automática activada');
-                        }
-                    });
             });
-            
-            disconnectBtn.addEventListener('click', function() {
-                console.log('Desconectando del PLC...');
-                fetch('/disconnect', { method: 'POST' })
-                    .then(response => response.json())
-                    .then(data => {
-                        updatePlcData();
-                        console.log('Desconexión completada');
-                    });
-            });
-            
-            clearHistoryBtn.addEventListener('click', function() {
-                dataHistory.innerHTML = '';
-                historyData = [];
-                lastRecordedValue = null;
-                console.log('Historial limpiado');
-            });
-            
-            // Control de la lectura automática
-            autoReadSwitch.addEventListener('change', function() {
-                if (this.checked) {
-                    console.log('Activando lectura automática');
-                    fetch('/api/enableAutoRead', { method: 'POST' });
-                    startAutoRefresh();
-                } else {
-                    console.log('Desactivando lectura automática');
-                    fetch('/api/disableAutoRead', { method: 'POST' });
-                    stopAutoRefresh();
-                }
-            });
-            
-            // Función para iniciar todo automáticamente
-            function autoStart() {
-                console.log('Iniciando arranque automático...');
+        }
+
+        function updateChartData(value, key) {
+            let chart = null;
+            if (key === 'db') chart = window.mainChartDB;
+            if (key === 'sim1') chart = window.mainChartSim1;
+            if (key === 'sim2') chart = window.mainChartSim2;
+
+            if (chart) {
+                // Actualizar datos de forma eficiente
+                const data = chart.data.datasets[0].data;
+                data.push(value);
+                data.shift();
+                chart.update('none'); // Modo 'none' para máximo rendimiento
+            }
+        }
+
+        // Event listener para cambiar tasa de actualización
+        applyRateBtn.addEventListener('click', () => {
+            const newRate = parseInt(updateRateInput.value);
+            if (!isNaN(newRate) && newRate >= 1 && newRate <= 5000) {
+                updateRate = newRate;
+                updateRateDisplay.textContent = newRate;
                 
-                // Comprobar estado de conexión
-                fetch('/api/status')
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Estado actual:', data);
-                        
-                        if (!data.connected) {
-                            console.log('No conectado, intentando conexión automática');
-                            // Conectar automáticamente
-                            return fetch('/connect', { method: 'POST' })
-                                .then(response => response.json());
-                        } else {
-                            console.log('Ya conectado');
-                            return { success: true };
-                        }
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            console.log('Habilitando lectura automática');
-                            // Habilitar lectura automática
-                            return fetch('/api/enableAutoRead', { method: 'POST' });
-                        }
-                    })
-                    .then(() => {
-                        console.log('Solicitando lectura inicial de DB1');
-                        // Leer DB1 explícitamente para tener un valor inicial
-                        return fetch('/readDB1');
-                    })
-                    .then(() => {
-                        console.log('Iniciando actualización periódica');
-                        // Actualizar una vez inmediatamente
-                        updatePlcData();
-                        
-                        // Iniciar actualización periódica
-                        if (autoReadSwitch.checked) {
-                            startAutoRefresh();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error en arranque automático:', error);
-                        // Intentar de todos modos
-                        updatePlcData();
-                        if (autoReadSwitch.checked) {
-                            startAutoRefresh();
-                        }
-                    });
+                // Cambiar automáticamente a RequestAnimationFrame para tasas muy rápidas
+                if (newRate < 16) { // 16ms es aproximadamente 60fps
+                    useRequestAnimationFrame = true;
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                        updateInterval = null;
+                    }
+                    // Iniciar animación si no está corriendo
+                    if (lastUpdateTime === 0) {
+                        lastUpdateTime = performance.now();
+                        requestAnimationFrame(animationFrameUpdate);
+                    }
+                    console.log("Modo ultra-rápido activado usando requestAnimationFrame");
+                } else {
+                    // Volver a setInterval para tasas más lentas
+                    useRequestAnimationFrame = false;
+                    startIntervalUpdate();
+                }
+                
+                // Actualizar etiquetas de tiempo en los gráficos
+                [window.mainChartDB, window.mainChartSim1, window.mainChartSim2].forEach(chart => {
+                    if (chart) {
+                        chart.data.labels = Array(maxDataPoints).fill('').map((_, i) => {
+                            return `-${((maxDataPoints - i) * (updateRate / 1000)).toFixed(1)}s`;
+                        });
+                    }
+                });
+                
+                // Agregar advertencia para valores muy bajos
+                const warningElement = document.getElementById('performanceWarning');
+                if (newRate < 10) {
+                    warningElement.style.display = 'block';
+                    console.warn("¡Atención! Intervalos muy bajos pueden sobrecargar el navegador y el PLC.");
+                } else {
+                    warningElement.style.display = 'none';
+                }
             }
-            
-            // Iniciar todo automáticamente
-            autoStart();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCharts();
+            startAutoRefresh();
         });
     </script>
 </body>

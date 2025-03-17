@@ -228,7 +228,7 @@ public class PlcService {
     }
     
     // Método programado para leer datos automáticamente cada 50 milisegundos (20 veces por segundo)
-    @Scheduled(fixedRate = 50)
+    @Scheduled(fixedRate = 10)
     public void autoReadData() {
         if (this.autoReadEnabled && this.connected) {
             readDB1Data();
