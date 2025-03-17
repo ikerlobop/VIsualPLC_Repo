@@ -133,6 +133,30 @@
             background-color: #333333;
             border-bottom: 1px solid #404040;
             color: #cccccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chart-control-btn {
+            background-color: transparent;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .chart-control-btn:hover {
+            background-color: #444444;
+        }
+        
+        .control-icon {
+            font-size: 14px;
         }
         
         .chart-body {
@@ -232,7 +256,12 @@
             <div class="charts-container">
                 <!-- Gráfica principal PLC -->
                 <div class="chart-card">
-                    <div class="chart-header">DB2.DBW0 - Tendencia</div>
+                    <div class="chart-header">
+                        DB2.DBW0 - Tendencia
+                        <button class="chart-control-btn" id="toggleDB" title="Reproducir/Pausar">
+                            <span class="control-icon">⏸️</span>
+                        </button>
+                    </div>
                     <div class="chart-body">
                         <canvas id="mainChartDB"></canvas>
                     </div>
@@ -240,7 +269,12 @@
                 
                 <!-- Gráfica Variable 1 -->
                 <div class="chart-card">
-                    <div class="chart-header">Variable 1 - Tendencia</div>
+                    <div class="chart-header">
+                        Variable 1 - Tendencia
+                        <button class="chart-control-btn" id="toggleSim1" title="Reproducir/Pausar">
+                            <span class="control-icon">⏸️</span>
+                        </button>
+                    </div>
                     <div class="chart-body">
                         <canvas id="mainChartSim1"></canvas>
                     </div>
@@ -248,7 +282,12 @@
                 
                 <!-- Gráfica Variable 2 -->
                 <div class="chart-card">
-                    <div class="chart-header">Variable 2 - Tendencia</div>
+                    <div class="chart-header">
+                        Variable 2 - Tendencia
+                        <button class="chart-control-btn" id="toggleSim2" title="Reproducir/Pausar">
+                            <span class="control-icon">⏸️</span>
+                        </button>
+                    </div>
                     <div class="chart-body">
                         <canvas id="mainChartSim2"></canvas>
                     </div>
@@ -324,6 +363,13 @@
         let lastFpsUpdate = Date.now();
         let lastUpdateTime = 0;
         let useRequestAnimationFrame = false; // Cambiar a true para máxima velocidad
+        
+        // Estado de cada gráfica (true = activa, false = pausada)
+        let chartStatus = {
+            db: true,
+            sim1: true,
+            sim2: true
+        };
         
         // Datos para estadísticas
         let statsData = {
@@ -525,6 +571,9 @@
         }
 
         function updateChartData(value, key) {
+            // Solo actualizar si la gráfica no está pausada
+            if (!chartStatus[key]) return;
+            
             let chart = null;
             if (key === 'db') chart = window.mainChartDB;
             if (key === 'sim1') chart = window.mainChartSim1;
@@ -585,10 +634,47 @@
             }
         });
 
+        // Función para alternar estado de reproducción/pausa
+        function toggleChartStatus(key) {
+            const status = chartStatus[key];
+            chartStatus[key] = !status;
+            
+            // Actualizar el botón
+            let buttonId, iconElement;
+            if (key === 'db') {
+                buttonId = 'toggleDB';
+            } else if (key === 'sim1') {
+                buttonId = 'toggleSim1';
+            } else if (key === 'sim2') {
+                buttonId = 'toggleSim2';
+            }
+            
+            if (buttonId) {
+                const button = document.getElementById(buttonId);
+                const iconElement = button.querySelector('.control-icon');
+                
+                if (chartStatus[key]) {
+                    // Reproduciendo (muestro pausa)
+                    iconElement.textContent = '⏸️';
+                    button.title = 'Pausar';
+                } else {
+                    // Pausado (muestro play)
+                    iconElement.textContent = '▶️';
+                    button.title = 'Reproducir';
+                }
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', () => {
             initializeCharts();
             startAutoRefresh();
+            
+            // Añadir event listeners para los botones de play/pausa
+            document.getElementById('toggleDB').addEventListener('click', () => toggleChartStatus('db'));
+            document.getElementById('toggleSim1').addEventListener('click', () => toggleChartStatus('sim1'));
+            document.getElementById('toggleSim2').addEventListener('click', () => toggleChartStatus('sim2'));
         });
     </script>
 </body>
-</html>
+</html> 
+ 
