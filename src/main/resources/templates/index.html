@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Monitor PLC</title>
+    <title>Monitor PLC - Autodetección</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -14,25 +14,27 @@
             margin: 0;
             padding: 0;
             height: 100vh;
-            overflow: hidden; /* Solo para el body principal */
+            overflow: hidden;
         }
         
         .ide-container {
             display: flex;
             height: 100vh;
             width: 100%;
-            overflow: hidden; /* Contiene los paneles principales */
+            overflow: hidden;
         }
         
         /* Panel de variables (izquierda) */
         .variables-panel {
-            width: 300px;
+            width: 320px;
             background-color: #252526;
             border-right: 1px solid #404040;
             padding: 10px 0;
             flex-shrink: 0;
-            overflow-y: auto; /* Añadir barra de desplazamiento vertical */
-            max-height: 100vh; /* Asegurar que no crece más allá de la ventana */
+            overflow-y: auto;
+            max-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
         .panel-header {
@@ -79,7 +81,7 @@
             background-color: #1e1e1e;
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* Contiene el área principal */
+            overflow: hidden;
         }
         
         .toolbar {
@@ -88,6 +90,7 @@
             border-bottom: 1px solid #404040;
             display: flex;
             align-items: center;
+            justify-content: space-between;
             margin-bottom: 15px;
         }
         
@@ -119,10 +122,11 @@
         
         .charts-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             grid-gap: 15px;
             flex-grow: 1;
-            grid-auto-rows: min-content;
+            overflow-y: auto;
+            padding-right: 5px;
         }
         
         .chart-card {
@@ -130,6 +134,7 @@
             border: 1px solid #404040;
             border-radius: 4px;
             overflow: hidden;
+            min-height: 350px;
         }
         
         .chart-header {
@@ -166,7 +171,7 @@
         
         .chart-body {
             padding: 10px;
-            height: 300px; /* Aumentado de 200px a 300px */
+            height: 280px;
         }
         
         .settings-panel {
@@ -203,132 +208,68 @@
         .type-int { color: #569cd6; }
         .type-float { color: #b5cea8; }
         .type-bool { color: #4fc1ff; }
+        .type-byte { color: #d7ba7d; }
+        .type-word { color: #569cd6; }
+        .type-dword { color: #4ec9b0; }
+        .type-real { color: #b5cea8; }
 
-        /* Nuevos estilos para las gráficas ocultas */
-        .chart-card.hidden {
-            display: none;
-        }
-        
-        /* Estilo para variables ocultas */
-        .variable-item.hidden {
-            opacity: 0.5;
-        }
-        
-        /* Estilo para el botón de eliminar */
-        .close-chart-btn {
-            background-color: transparent;
-            border: none;
-            color: #cccccc;
-            cursor: pointer;
-            margin-left: 5px;
-            font-size: 14px;
-            padding: 2px 6px;
+        /* Estilo para acciones del panel de variables */
+        .variables-actions {
+            padding: 10px 15px;
+            border-bottom: 1px solid #404040;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            gap: 8px;
         }
         
-        .close-chart-btn:hover {
-            background-color: #e74c3c;
-            color: white;
-            border-radius: 3px;
+        .btn-sm {
+            font-size: 12px;
+            padding: 3px 8px;
         }
         
-        /* Estilo para el botón de expandir/contraer */
-        .expand-chart-btn {
-            background-color: transparent;
-            border: none;
-            color: #cccccc;
-            cursor: pointer;
-            margin-left: 5px;
-            font-size: 14px;
+        /* Estilos para mensajes de estado */
+        .status-message {
+            padding: 8px 15px;
+            font-size: 12px;
+            color: #888;
+            background-color: #2d2d2d;
+            border-top: 1px solid #404040;
+            margin-top: auto;
+        }
+        
+        .variable-type {
             padding: 2px 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .expand-chart-btn:hover {
-            background-color: #2980b9;
-            color: white;
             border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            background-color: #2d2d2d;
         }
         
-        /* Estilos para gráficas expandidas */
-        .chart-card.expanded {
-            position: fixed;
-            top: 50px;
-            left: 50px;
-            right: 50px;
-            bottom: 50px;
-            width: auto;
-            height: auto;
-            z-index: 1000;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+        /* Estilo para variables seleccionadas */
+        .variable-item.selected {
+            background-color: #264f78;
         }
         
-        .chart-card.expanded .chart-body {
-            height: calc(100% - 40px);
-        }
-        
-        /* Overlay para cuando una gráfica está expandida */
-        .overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.6);
-            z-index: 999;
-        }
-        
-        .overlay.active {
-            display: block;
-        }
-        
-        /* Controles de redimensionamiento */
-        .resize-handle {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background-color: #555;
+        /* Spinner de carga */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ccc;
+            border-top-color: #0e639c;
             border-radius: 50%;
-            z-index: 1001;
-            display: none;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
         }
         
-        .chart-card.expanded .resize-handle {
-            display: block;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
-        .resize-handle.top-left {
-            top: -5px;
-            left: -5px;
-            cursor: nw-resize;
-        }
-        
-        .resize-handle.top-right {
-            top: -5px;
-            right: -5px;
-            cursor: ne-resize;
-        }
-        
-        .resize-handle.bottom-left {
-            bottom: -5px;
-            left: -5px;
-            cursor: sw-resize;
-        }
-        
-        .resize-handle.bottom-right {
-            bottom: -5px;
-            right: -5px;
-            cursor: se-resize;
-        }
-        
-        .chart-controls {
-            display: flex;
-            align-items: center;
+        /* Estilos para los resúmenes de variables */
+        .variable-summary {
+            font-size: 11px;
+            color: #888;
+            margin-top: 3px;
         }
     </style>
 </head>
@@ -341,19 +282,22 @@
                 <span class="status-indicator" id="connectionStatus"></span>
             </div>
             
-            <div class="variable-item" id="variableDb" data-chart="db">
-                <div class="variable-name">DB2.DBW0 <span class="type-float">(float)</span></div>
-                <div class="variable-value" id="db1Value">--</div>
+            <div class="variables-actions">
+                <button id="detectBtn" class="btn-sm" title="Buscar variables disponibles">
+                    <span id="detectSpinner" class="spinner" style="display: none;"></span>
+                    Detectar variables
+                </button>
+                <button id="refreshBtn" class="btn-sm" title="Actualizar datos">
+                    <span id="refreshSpinner" class="spinner" style="display: none;"></span>
+                    Actualizar
+                </button>
             </div>
             
-            <div class="variable-item" id="variableSim1" data-chart="sim1">
-                <div class="variable-name">Variable 1 <span class="type-int">(int)</span></div>
-                <div class="variable-value" id="simValue1">--</div>
-            </div>
-            
-            <div class="variable-item" id="variableSim2" data-chart="sim2">
-                <div class="variable-name">Variable 2 <span class="type-int">(int)</span></div>
-                <div class="variable-value" id="simValue2">--</div>
+            <div id="variablesContainer">
+                <!-- Aquí se cargarán dinámicamente las variables detectadas -->
+                <div class="variable-item skeleton">
+                    <div class="variable-name">Cargando variables...</div>
+                </div>
             </div>
             
             <!-- Sección de configuración -->
@@ -371,212 +315,38 @@
                 <div style="font-size: 12px; color: #888; margin-top: 20px;">
                     <div>Actualizaciones/seg: <span id="fpsCounter">0</span></div>
                     <div style="margin-top: 5px;">Tiempo respuesta: <span id="responseTime">0</span> ms</div>
+                    <div style="margin-top: 5px;">Variables: <span id="varCounter">0</span></div>
                     <div style="margin-top: 15px; font-size: 11px; color: #ffcc00; display: none;" id="performanceWarning">
                         ⚠️ Atención: Intervalos muy bajos pueden afectar el rendimiento
                     </div>
                 </div>
+            </div>
+            
+            <div class="status-message" id="statusMessage">
+                Conectado a <span id="connectionStringDisplay">--</span>
             </div>
         </div>
         
         <!-- Panel principal (derecha) -->
         <div class="main-panel">
             <div class="toolbar">
-                <h5 style="margin: 0;">Monitor PLC</h5>
-                <div class="fps-counter">Actualización: <span id="updateRateDisplay">100</span> ms</div>
+                <h5 style="margin: 0;">Monitor PLC - Autodetección</h5>
+                <div style="display: flex; align-items: center;">
+                    <div class="fps-counter">Actualización: <span id="updateRateDisplay">100</span> ms</div>
+                    <button id="addAllChartsBtn" style="margin-left: 15px;">Mostrar todas</button>
+                    <button id="clearChartsBtn" style="margin-left: 8px;">Limpiar gráficas</button>
+                </div>
             </div>
             
-            <!-- Contenedor principal con dos secciones: gráficas y resumen -->
-            <div style="display: flex; gap: 15px; height: calc(100vh - 100px); overflow: hidden;">
-                <!-- Contenedor de gráficas (ajustado para dejar espacio al resumen) -->
-                <div class="charts-container" style="flex-grow: 1; grid-template-columns: 1fr; grid-auto-rows: minmax(350px, auto); overflow-y: auto; padding-right: 5px;">
-                    <!-- Gráfica principal PLC -->
-                    <div class="chart-card" id="chartCardDb">
-                        <div class="chart-header">
-                            DB2.DBW0 - Tendencia
-                            <div class="chart-controls">
-                                <button class="chart-control-btn" id="toggleDB" title="Reproducir/Pausar">
-                                    <span class="control-icon">⏸️</span>
-                                </button>
-                                <button class="close-chart-btn" id="closeDB" title="Ocultar gráfica">
-                                    <span>✕</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="mainChartDB"></canvas>
-                        </div>
+            <!-- Contenedor de gráficas (automáticamente crea tantas como sea necesario) -->
+            <div class="charts-container" id="chartsContainer">
+                <!-- Aquí se cargarán dinámicamente las gráficas -->
+                <div class="chart-card placeholder">
+                    <div class="chart-header">
+                        Selecciona una variable para mostrar su gráfica
                     </div>
-                    
-                    <!-- Gráfica Variable 1 -->
-                    <div class="chart-card" id="chartCardSim1">
-                        <div class="chart-header">
-                            Variable 1 - Tendencia
-                            <div class="chart-controls">
-                                <button class="chart-control-btn" id="toggleSim1" title="Reproducir/Pausar">
-                                    <span class="control-icon">⏸️</span>
-                                </button>
-                                <button class="close-chart-btn" id="closeSim1" title="Ocultar gráfica">
-                                    <span>✕</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="mainChartSim1"></canvas>
-                        </div>
-                    </div>
-                    
-                    <!-- Gráfica Variable 2 -->
-                    <div class="chart-card" id="chartCardSim2">
-                        <div class="chart-header">
-                            Variable 2 - Tendencia
-                            <div class="chart-controls">
-                                <button class="chart-control-btn" id="toggleSim2" title="Reproducir/Pausar">
-                                    <span class="control-icon">⏸️</span>
-                                </button>
-                                <button class="close-chart-btn" id="closeSim2" title="Ocultar gráfica">
-                                    <span>✕</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="mainChartSim2"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Panel de resumen fijo a la derecha -->
-                <div class="chart-card" style="width: 280px; flex-shrink: 0; max-height: calc(100vh - 100px); overflow-y: auto;">
-                    <div class="chart-header" style="position: sticky; top: 0; z-index: 10;">Resumen</div>
-                    <div class="chart-body" style="overflow-y: visible; height: auto;">
-                        <table class="table table-sm" style="color: #d4d4d4; font-size: 12px;">
-                            <thead style="position: sticky; top: 0; background-color: #252526;">
-                                <tr>
-                                    <th>Variable</th>
-                                    <th>Min</th>
-                                    <th>Max</th>
-                                    <th>Promedio</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr id="resumenDb">
-                                    <td>DB2.DBW0</td>
-                                    <td id="db1Min">--</td>
-                                    <td id="db1Max">--</td>
-                                    <td id="db1Avg">--</td>
-                                </tr>
-                                <tr id="resumenSim1">
-                                    <td>Variable 1</td>
-                                    <td id="sim1Min">--</td>
-                                    <td id="sim1Max">--</td>
-                                    <td id="sim1Avg">--</td>
-                                </tr>
-                                <tr id="resumenSim2">
-                                    <td>Variable 2</td>
-                                    <td id="sim2Min">--</td>
-                                    <td id="sim2Max">--</td>
-                                    <td id="sim2Avg">--</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Overlay para cuando una gráfica está expandida -->
-    <div class="overlay" id="overlay"></div>    <span class="control-icon">⏸️</span>
-                                </button>
-                                <button class="expand-chart-btn" id="expandDB" title="Expandir gráfica">
-                                    <span>⤢</span>
-                                </button>
-                                <button class="close-chart-btn" id="closeDB" title="Ocultar gráfica">
-                                    <span>✕</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="mainChartDB"></canvas>
-                        </div>
-                    </div>
-                    
-                    <!-- Gráfica Variable 1 -->
-                    <div class="chart-card" id="chartCardSim1">
-                        <div class="chart-header">
-                            Variable 1 - Tendencia
-                            <div class="chart-controls">
-                                <button class="chart-control-btn" id="toggleSim1" title="Reproducir/Pausar">
-                                    <span class="control-icon">⏸️</span>
-                                </button>
-                                <button class="expand-chart-btn" id="expandSim1" title="Expandir gráfica">
-                                    <span>⤢</span>
-                                </button>
-                                <button class="close-chart-btn" id="closeSim1" title="Ocultar gráfica">
-                                    <span>✕</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="mainChartSim1"></canvas>
-                        </div>
-                    </div>
-                    
-                    <!-- Gráfica Variable 2 -->
-                    <div class="chart-card" id="chartCardSim2">
-                        <div class="chart-header">
-                            Variable 2 - Tendencia
-                            <div class="chart-controls">
-                                <button class="chart-control-btn" id="toggleSim2" title="Reproducir/Pausar">
-                                    <span class="control-icon">⏸️</span>
-                                </button>
-                                <button class="expand-chart-btn" id="expandSim2" title="Expandir gráfica">
-                                    <span>⤢</span>
-                                </button>
-                                <button class="close-chart-btn" id="closeSim2" title="Ocultar gráfica">
-                                    <span>✕</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="mainChartSim2"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Panel de resumen fijo a la derecha -->
-                <div class="chart-card" style="width: 280px; flex-shrink: 0; align-self: flex-start; position: sticky; top: 15px;">
-                    <div class="chart-header">Resumen</div>
-                    <div class="chart-body" style="overflow-y: auto;">
-                        <table class="table table-sm" style="color: #d4d4d4; font-size: 12px;">
-                            <thead>
-                                <tr>
-                                    <th>Variable</th>
-                                    <th>Min</th>
-                                    <th>Max</th>
-                                    <th>Promedio</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr id="resumenDb">
-                                    <td>DB2.DBW0</td>
-                                    <td id="db1Min">--</td>
-                                    <td id="db1Max">--</td>
-                                    <td id="db1Avg">--</td>
-                                </tr>
-                                <tr id="resumenSim1">
-                                    <td>Variable 1</td>
-                                    <td id="sim1Min">--</td>
-                                    <td id="sim1Max">--</td>
-                                    <td id="sim1Avg">--</td>
-                                </tr>
-                                <tr id="resumenSim2">
-                                    <td>Variable 2</td>
-                                    <td id="sim2Min">--</td>
-                                    <td id="sim2Max">--</td>
-                                    <td id="sim2Avg">--</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="chart-body" style="display: flex; justify-content: center; align-items: center; color: #888;">
+                        <p>Haz clic en una variable del panel izquierdo o usa el botón "Mostrar todas"</p>
                     </div>
                 </div>
             </div>
@@ -585,44 +355,23 @@
 
     <script>
         // Referencias a elementos del DOM
-        const db1Value = document.getElementById('db1Value');
-        const simValue1 = document.getElementById('simValue1');
-        const simValue2 = document.getElementById('simValue2');
         const connectionStatus = document.getElementById('connectionStatus');
         const fpsCounter = document.getElementById('fpsCounter');
         const responseTime = document.getElementById('responseTime');
         const updateRateInput = document.getElementById('updateRateInput');
         const updateRateDisplay = document.getElementById('updateRateDisplay');
         const applyRateBtn = document.getElementById('applyRateBtn');
-        
-        // Referencias a tarjetas de gráficas
-        const chartCardDb = document.getElementById('chartCardDb');
-        const chartCardSim1 = document.getElementById('chartCardSim1');
-        const chartCardSim2 = document.getElementById('chartCardSim2');
-        
-        // Referencias a variables para doble clic
-        const variableDb = document.getElementById('variableDb');
-        const variableSim1 = document.getElementById('variableSim1');
-        const variableSim2 = document.getElementById('variableSim2');
-        
-        // Referencias a filas de resumen
-        const resumenDb = document.getElementById('resumenDb');
-        const resumenSim1 = document.getElementById('resumenSim1');
-        const resumenSim2 = document.getElementById('resumenSim2');
-        
-        // Referencias al overlay
-        const overlay = document.getElementById('overlay');
-        
-        // Estadísticas
-        const db1Min = document.getElementById('db1Min');
-        const db1Max = document.getElementById('db1Max');
-        const db1Avg = document.getElementById('db1Avg');
-        const sim1Min = document.getElementById('sim1Min');
-        const sim1Max = document.getElementById('sim1Max');
-        const sim1Avg = document.getElementById('sim1Avg');
-        const sim2Min = document.getElementById('sim2Min');
-        const sim2Max = document.getElementById('sim2Max');
-        const sim2Avg = document.getElementById('sim2Avg');
+        const detectBtn = document.getElementById('detectBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const detectSpinner = document.getElementById('detectSpinner');
+        const refreshSpinner = document.getElementById('refreshSpinner');
+        const variablesContainer = document.getElementById('variablesContainer');
+        const chartsContainer = document.getElementById('chartsContainer');
+        const statusMessage = document.getElementById('statusMessage');
+        const connectionStringDisplay = document.getElementById('connectionStringDisplay');
+        const varCounter = document.getElementById('varCounter');
+        const addAllChartsBtn = document.getElementById('addAllChartsBtn');
+        const clearChartsBtn = document.getElementById('clearChartsBtn');
         
         // Variables para el control de actualización
         let updateInterval = null;
@@ -630,208 +379,231 @@
         let frameCount = 0;
         let lastFpsUpdate = Date.now();
         let lastUpdateTime = 0;
-        let useRequestAnimationFrame = false; // Cambiar a true para máxima velocidad
+        let useRequestAnimationFrame = false;
         
-        // Estado de cada gráfica (true = activa, false = pausada)
-        let chartStatus = {
-            db: true,
-            sim1: true,
-            sim2: true
-        };
+        // Lista de variables detectadas
+        let detectedVariables = [];
         
-        // Estado de visibilidad de las gráficas (true = visible, false = oculta)
-        let chartVisibility = {
-            db: true,
-            sim1: true,
-            sim2: true
-        };
+        // Mapeo de gráficas activas
+        let activeCharts = {};
         
-        // Estado de expansión de gráficas (true = expandida, false = normal)
-        let expandedState = {
-            db: false,
-            sim1: false,
-            sim2: false
-        };
+        // Colores para las gráficas
+        const chartColors = [
+            '#4e79a7', '#f28e2c', '#e15759', '#76b7b2', '#59a14f',
+            '#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab'
+        ];
         
-        // Datos para estadísticas
-        let statsData = {
-            db: { values: [], min: null, max: null, avg: null },
-            sim1: { values: [], min: null, max: null, avg: null },
-            sim2: { values: [], min: null, max: null, avg: null }
-        };
+        // Obtener un color según el índice
+        function getChartColor(index) {
+            return chartColors[index % chartColors.length];
+        }
         
-        const maxDataPoints = 100; // Más puntos para las gráficas principales
-        
-        // Función optimizada para actualizar datos del PLC
-        async function updatePlcData() {
-            const startTime = performance.now();
-            
+        // Función para cargar variables desde el servidor
+        async function loadVariables() {
             try {
-                const response = await fetch('/api/status', {
-                    method: 'GET',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                
-                if (!response.ok) throw new Error('Network response error');
-                
-                const data = await response.json();
-                connectionStatus.classList.add('status-active');
-                
-                if (data.lastValue !== null && data.lastValue !== undefined) {
-                    const plcValue = parseFloat(data.lastValue) || 0;
-                    db1Value.textContent = plcValue.toFixed(2);
-                    updateChartData(plcValue, 'db');
-                    updateStats(plcValue, 'db');
+                refreshSpinner.style.display = 'inline-block';
+                const response = await fetch('/api/variables');
+                if (!response.ok) {
+                    throw new Error('Error al cargar variables');
                 }
                 
-                // Medir tiempo de respuesta
-                const endTime = performance.now();
-                responseTime.textContent = Math.round(endTime - startTime);
+                const data = await response.json();
+                detectedVariables = data.details || [];
+                
+                // Actualizar contador
+                varCounter.textContent = detectedVariables.length;
+                
+                // Renderizar la lista de variables
+                renderVariablesList();
+                
+                refreshSpinner.style.display = 'none';
+                connectionStatus.classList.add('status-active');
+                statusMessage.textContent = `Conectado con ${detectedVariables.length} variables`;
             } catch (error) {
                 console.error('Error:', error);
+                refreshSpinner.style.display = 'none';
                 connectionStatus.classList.remove('status-active');
+                statusMessage.textContent = `Error: ${error.message}`;
             }
-            
-            // Actualiza contador de FPS
-            frameCount++;
-            const now = Date.now();
-            if (now - lastFpsUpdate >= 1000) { // Cada segundo
-                fpsCounter.textContent = frameCount;
-                frameCount = 0;
-                lastFpsUpdate = now;
-            }
-        }
-
-        function generateRandomValue(min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        }
-
-        function simulateVariables() {
-            const val1 = generateRandomValue(10, 50);
-            const val2 = generateRandomValue(30, 80);
-            
-            simValue1.textContent = val1;
-            simValue2.textContent = val2;
-            
-            updateChartData(val1, 'sim1');
-            updateChartData(val2, 'sim2');
-            
-            updateStats(val1, 'sim1');
-            updateStats(val2, 'sim2');
         }
         
-        // Actualiza estadísticas
-        function updateStats(value, key) {
-            const stats = statsData[key];
-            stats.values.push(value);
-            
-            // Limitar el número de valores para las estadísticas
-            if (stats.values.length > 50) {
-                stats.values.shift();
-            }
-            
-            // Calcular estadísticas
-            stats.min = Math.min(...stats.values);
-            stats.max = Math.max(...stats.values);
-            stats.avg = stats.values.reduce((a, b) => a + b, 0) / stats.values.length;
-            
-            // Actualizar en la UI
-            if (key === 'db') {
-                db1Min.textContent = stats.min.toFixed(2);
-                db1Max.textContent = stats.max.toFixed(2);
-                db1Avg.textContent = stats.avg.toFixed(2);
-            } else if (key === 'sim1') {
-                sim1Min.textContent = stats.min.toFixed(0);
-                sim1Max.textContent = stats.max.toFixed(0);
-                sim1Avg.textContent = stats.avg.toFixed(1);
-            } else if (key === 'sim2') {
-                sim2Min.textContent = stats.min.toFixed(0);
-                sim2Max.textContent = stats.max.toFixed(0);
-                sim2Avg.textContent = stats.avg.toFixed(1);
-            }
-        }
-
-        // Función para actualización con RequestAnimationFrame
-        function animationFrameUpdate() {
-            const now = performance.now();
-            const elapsed = now - lastUpdateTime;
-            
-            if (elapsed >= updateRate) {
-                lastUpdateTime = now;
-                updatePlcData();
-                simulateVariables();
-            }
-            
-            requestAnimationFrame(animationFrameUpdate);
-        }
-
-        // Función para actualización con setInterval
-        function startIntervalUpdate() {
-            if (updateInterval) {
-                clearInterval(updateInterval);
-            }
-            
-            updateInterval = setInterval(() => {
-                updatePlcData();
-                simulateVariables();
-            }, updateRate);
-        }
-
-        function startAutoRefresh() {
-            if (useRequestAnimationFrame) {
-                lastUpdateTime = performance.now();
-                requestAnimationFrame(animationFrameUpdate);
-            } else {
-                startIntervalUpdate();
-            }
-        }
-
-        function initializeCharts() {
-            console.log("Inicializando gráficas...");
-            // Crear gráficas principales
+        // Función para iniciar la detección de variables
+        async function detectVariables() {
             try {
-                const ctxMainDB = document.getElementById('mainChartDB').getContext('2d');
-                window.mainChartDB = createMainChart(ctxMainDB, 'blue', 'DB2.DBW0');
-                console.log("Gráfica DB creada:", window.mainChartDB);
+                detectSpinner.style.display = 'inline-block';
+                statusMessage.textContent = 'Detectando variables...';
                 
-                const ctxMainSim1 = document.getElementById('mainChartSim1').getContext('2d');
-                window.mainChartSim1 = createMainChart(ctxMainSim1, 'green', 'Variable 1');
-                console.log("Gráfica Sim1 creada:", window.mainChartSim1);
+                const response = await fetch('/api/detectVariables', {
+                    method: 'POST'
+                });
                 
-                const ctxMainSim2 = document.getElementById('mainChartSim2').getContext('2d');
-                window.mainChartSim2 = createMainChart(ctxMainSim2, 'red', 'Variable 2');
-                console.log("Gráfica Sim2 creada:", window.mainChartSim2);
+                if (!response.ok) {
+                    throw new Error('Error al detectar variables');
+                }
+                
+                const data = await response.json();
+                
+                // Cargar las variables actualizadas
+                await loadVariables();
+                
+                detectSpinner.style.display = 'none';
+                statusMessage.textContent = `Detección completa. Se encontraron ${data.count} variables.`;
             } catch (error) {
-                console.error("Error al inicializar gráficas:", error);
+                console.error('Error:', error);
+                detectSpinner.style.display = 'none';
+                statusMessage.textContent = `Error en detección: ${error.message}`;
             }
         }
-
-        function createMainChart(ctx, color, label) {
-            // Generar etiquetas de tiempo para el eje X
-            const labels = Array(maxDataPoints).fill('').map((_, i) => {
-                return `-${(maxDataPoints - i) * (updateRate / 1000)}s`;
-            });
+        
+        // Renderizar lista de variables
+        function renderVariablesList() {
+            variablesContainer.innerHTML = '';
             
-            return new Chart(ctx, {
+            if (detectedVariables.length === 0) {
+                variablesContainer.innerHTML = `
+                    <div class="variable-item">
+                        <div class="variable-name">No se encontraron variables</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            detectedVariables.forEach((variable, index) => {
+                const valueType = typeof variable.lastValue;
+                let formattedValue = variable.lastValue;
+                let typeClass = '';
+                
+                // Formatear valor según el tipo de dato
+                if (valueType === 'number') {
+                    if (variable.dataType === 'REAL' || variable.dataType.includes('REAL')) {
+                        formattedValue = parseFloat(variable.lastValue).toFixed(2);
+                        typeClass = 'type-float';
+                    } else {
+                        formattedValue = Math.round(variable.lastValue);
+                        typeClass = 'type-int';
+                    }
+                } else if (valueType === 'boolean') {
+                    formattedValue = variable.lastValue ? 'TRUE' : 'FALSE';
+                    typeClass = 'type-bool';
+                }
+                
+                // Crear elemento de variable
+                const varItem = document.createElement('div');
+                varItem.className = 'variable-item';
+                varItem.dataset.name = variable.name;
+                varItem.dataset.address = variable.address;
+                varItem.dataset.type = variable.dataType;
+                varItem.dataset.index = index;
+                
+                // Contenido del elemento
+                varItem.innerHTML = `
+                    <div>
+                        <div class="variable-name">${variable.name} 
+                            <span class="${typeClass}">(${variable.dataType})</span>
+                        </div>
+                        <div class="variable-summary">
+                            ${variable.min !== undefined ? `Min: ${variable.min.toFixed(1)} | Max: ${variable.max.toFixed(1)} | Prom: ${variable.avg.toFixed(1)}` : ''}
+                        </div>
+                    </div>
+                    <div class="variable-value ${typeClass}" id="value-${variable.name.replace(/\./g, '-')}">${formattedValue}</div>
+                `;
+                
+                // Evento de clic para mostrar/ocultar gráfica
+                varItem.addEventListener('click', function() {
+                    const varName = this.dataset.name;
+                    
+                    // Alternar selección
+                    if (this.classList.contains('selected')) {
+                        this.classList.remove('selected');
+                        // Eliminar gráfica si existe
+                        if (activeCharts[varName]) {
+                            removeChart(varName);
+                        }
+                    } else {
+                        this.classList.add('selected');
+                        // Crear gráfica si no existe
+                        if (!activeCharts[varName]) {
+                            createChart(variable, parseInt(this.dataset.index));
+                        }
+                    }
+                });
+                
+                variablesContainer.appendChild(varItem);
+            });
+        }
+        
+        // Crear una nueva gráfica para una variable
+        function createChart(variable, colorIndex) {
+            const varName = variable.name;
+            
+            // Evitar duplicados
+            if (activeCharts[varName]) {
+                return;
+            }
+            
+            // Eliminar el placeholder si existe
+            const placeholder = document.querySelector('.chart-card.placeholder');
+            if (placeholder) {
+                placeholder.remove();
+            }
+            
+            // Crear elemento de gráfica
+            const chartCard = document.createElement('div');
+            chartCard.className = 'chart-card';
+            chartCard.id = `chart-card-${varName.replace(/\./g, '-')}`;
+            
+            // Definir el color de la gráfica
+            const chartColor = getChartColor(colorIndex);
+            
+            // Encabezado de la gráfica
+            chartCard.innerHTML = `
+                <div class="chart-header">
+                    ${variable.name} - ${variable.dataType}
+                    <div class="chart-controls">
+                        <button class="chart-control-btn toggle-btn" title="Reproducir/Pausar">
+                            <span class="control-icon">⏸️</span>
+                        </button>
+                        <button class="chart-control-btn clear-btn" title="Limpiar datos">
+                            <span class="control-icon">🗑️</span>
+                        </button>
+                        <button class="chart-control-btn close-btn" title="Cerrar gráfica">
+                            <span>✕</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-${varName.replace(/\./g, '-')}"></canvas>
+                </div>
+            `;
+            
+            // Agregar al contenedor
+            chartsContainer.appendChild(chartCard);
+            
+            // Obtener el contexto del canvas
+            const ctx = document.getElementById(`chart-${varName.replace(/\./g, '-')}`).getContext('2d');
+            
+            // Crear gráfica con Chart.js
+            const maxDataPoints = 60; // Puntos a mostrar
+            const chart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
-                    datasets: [{ 
-                        label: label,
-                        data: Array(maxDataPoints).fill(null), 
-                        borderColor: color, 
-                        backgroundColor: color + '20',
+                    labels: Array(maxDataPoints).fill('').map((_, i) => `-${(maxDataPoints - i) * (updateRate / 1000)}s`),
+                    datasets: [{
+                        label: variable.name,
+                        data: Array(maxDataPoints).fill(null),
+                        borderColor: chartColor,
+                        backgroundColor: `${chartColor}20`, // Color con transparencia
                         borderWidth: 2,
                         fill: true,
-                        tension: 0.2
+                        tension: 0.3
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: false, // Desactivar animaciones para mejor rendimiento
-                    scales: { 
-                        x: { 
+                    animation: false, // Mejor rendimiento
+                    scales: {
+                        x: {
                             grid: {
                                 color: '#333333'
                             },
@@ -841,196 +613,364 @@
                                 autoSkip: true,
                                 maxTicksLimit: 6
                             }
-                        }, 
-                        y: { 
+                        },
+                        y: {
                             grid: {
                                 color: '#333333'
                             },
                             ticks: {
                                 color: '#888888'
                             }
-                        } 
+                        }
                     },
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: '#1e1e1e',
+                            borderColor: '#404040',
+                            borderWidth: 1,
+                            titleColor: '#fff',
+                            bodyColor: '#ddd',
+                            padding: 10
                         }
                     }
                 }
             });
-        }
-
-        function updateChartData(value, key) {
-            // Solo actualizar si la gráfica no está pausada y está visible
-            if (!chartStatus[key] || !chartVisibility[key]) return;
             
-            let chart = null;
-            if (key === 'db') chart = window.mainChartDB;
-            if (key === 'sim1') chart = window.mainChartSim1;
-            if (key === 'sim2') chart = window.mainChartSim2;
-
-            if (chart) {
-                // Actualizar datos de forma eficiente
-                const data = chart.data.datasets[0].data;
-                data.push(value);
-                data.shift();
-                chart.update('none'); // Modo 'none' para máximo rendimiento
+            // Guardar referencia de la gráfica
+            activeCharts[varName] = {
+                chart: chart,
+                element: chartCard,
+                active: true, // Estado inicial: reproduciendo
+                data: {
+                    min: typeof variable.min === 'number' ? variable.min : Infinity,
+                    max: typeof variable.max === 'number' ? variable.max : -Infinity,
+                    sum: 0,
+                    count: 0
+                }
+            };
+            
+            // Configurar botones de control
+            const toggleBtn = chartCard.querySelector('.toggle-btn');
+            const clearBtn = chartCard.querySelector('.clear-btn');
+            const closeBtn = chartCard.querySelector('.close-btn');
+            
+            // Botón de reproducir/pausar
+            toggleBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                
+                const chartInfo = activeCharts[varName];
+                chartInfo.active = !chartInfo.active;
+                
+                const icon = this.querySelector('.control-icon');
+                if (chartInfo.active) {
+                    icon.textContent = '⏸️';
+                    this.title = 'Pausar';
+                } else {
+                    icon.textContent = '▶️';
+                    this.title = 'Reproducir';
+                }
+            });
+            
+            // Botón de limpiar datos
+            clearBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                
+                const chartInfo = activeCharts[varName];
+                const chartData = chartInfo.chart.data.datasets[0].data;
+                
+                // Limpiar datos
+                chartData.fill(null);
+                chartInfo.chart.update('none');
+                
+                // Resetear estadísticas
+                chartInfo.data = {
+                    min: Infinity,
+                    max: -Infinity,
+                    sum: 0,
+                    count: 0
+                };
+            });
+            
+            // Botón de cerrar
+            closeBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                removeChart(varName);
+                
+                // Deseleccionar variable en la lista
+                const varItem = document.querySelector(`.variable-item[data-name="${varName}"]`);
+                if (varItem) {
+                    varItem.classList.remove('selected');
+                }
+            });
+            
+            return chart;
+        }
+        
+        // Eliminar una gráfica
+        function removeChart(varName) {
+            const chartInfo = activeCharts[varName];
+            if (!chartInfo) return;
+            
+            // Destruir la instancia Chart.js
+            chartInfo.chart.destroy();
+            
+            // Eliminar el elemento del DOM
+            chartInfo.element.remove();
+            
+            // Eliminar de la lista de gráficas activas
+            delete activeCharts[varName];
+            
+            // Si no quedan gráficas, mostrar el placeholder
+            if (Object.keys(activeCharts).length === 0) {
+                chartsContainer.innerHTML = `
+                    <div class="chart-card placeholder">
+                        <div class="chart-header">
+                            Selecciona una variable para mostrar su gráfica
+                        </div>
+                        <div class="chart-body" style="display: flex; justify-content: center; align-items: center; color: #888;">
+                            <p>Haz clic en una variable del panel izquierdo o usa el botón "Mostrar todas"</p>
+                        </div>
+                    </div>
+                `;
             }
         }
-
-        // Event listener para cambiar tasa de actualización
-        applyRateBtn.addEventListener('click', () => {
-            const newRate = parseInt(updateRateInput.value);
-            if (!isNaN(newRate) && newRate >= 1 && newRate <= 5000) {
-                updateRate = newRate;
-                updateRateDisplay.textContent = newRate;
-                
-                // Cambiar automáticamente a RequestAnimationFrame para tasas muy rápidas
-                if (newRate < 16) { // 16ms es aproximadamente 60fps
-                    useRequestAnimationFrame = true;
-                    if (updateInterval) {
-                        clearInterval(updateInterval);
-                        updateInterval = null;
-                    }
-                    // Iniciar animación si no está corriendo
-                    if (lastUpdateTime === 0) {
-                        lastUpdateTime = performance.now();
-                        requestAnimationFrame(animationFrameUpdate);
-                    }
-                    console.log("Modo ultra-rápido activado usando requestAnimationFrame");
-                } else {
-                    // Volver a setInterval para tasas más lentas
-                    useRequestAnimationFrame = false;
-                    startIntervalUpdate();
+        
+        // Actualizar datos de una gráfica
+        function updateChartData(varName, value) {
+            const chartInfo = activeCharts[varName];
+            if (!chartInfo || !chartInfo.active) return;
+            
+            const chart = chartInfo.chart;
+            const chartData = chart.data.datasets[0].data;
+            
+            // Agregar nuevo valor y eliminar el más antiguo
+            chartData.push(value);
+            chartData.shift();
+            
+            // Actualizar gráfica sin animación para mejor rendimiento
+            chart.update('none');
+            
+            // Actualizar estadísticas
+            if (typeof value === 'number') {
+                chartInfo.data.min = Math.min(chartInfo.data.min, value);
+                chartInfo.data.max = Math.max(chartInfo.data.max, value);
+                chartInfo.data.sum += value;
+                chartInfo.data.count++;
+            }
+        }
+        
+        // Actualizar datos de todas las variables desde el servidor
+        async function updateVariablesData() {
+            const startTime = performance.now();
+            
+            try {
+                const response = await fetch('/api/variables');
+                if (!response.ok) {
+                    throw new Error('Error al actualizar variables');
                 }
                 
-                // Actualizar etiquetas de tiempo en los gráficos
-                [window.mainChartDB, window.mainChartSim1, window.mainChartSim2].forEach(chart => {
-                    if (chart) {
-                        chart.data.labels = Array(maxDataPoints).fill('').map((_, i) => {
-                            return `-${((maxDataPoints - i) * (updateRate / 1000)).toFixed(1)}s`;
-                        });
+                const data = await response.json();
+                const variables = data.details || [];
+                
+                // Actualizar valores en la UI
+                variables.forEach(variable => {
+                    const valueType = typeof variable.lastValue;
+                    let formattedValue = variable.lastValue;
+                    
+                    // Formatear según tipo
+                    if (valueType === 'number') {
+                        if (variable.dataType === 'REAL' || variable.dataType.includes('REAL')) {
+                            formattedValue = parseFloat(variable.lastValue).toFixed(2);
+                        } else {
+                            formattedValue = Math.round(variable.lastValue);
+                        }
+                    } else if (valueType === 'boolean') {
+                        formattedValue = variable.lastValue ? 'TRUE' : 'FALSE';
+                    }
+                    
+                    // Actualizar valor en la lista
+                    const valueElement = document.getElementById(`value-${variable.name.replace(/\./g, '-')}`);
+                    if (valueElement) {
+                        valueElement.textContent = formattedValue;
+                    }
+                    
+                    // Actualizar gráfica si existe
+                    if (activeCharts[variable.name]) {
+                        updateChartData(variable.name, variable.lastValue);
                     }
                 });
                 
-                // Agregar advertencia para valores muy bajos
-                const warningElement = document.getElementById('performanceWarning');
-                if (newRate < 10) {
-                    warningElement.style.display = 'block';
-                    console.warn("¡Atención! Intervalos muy bajos pueden sobrecargar el navegador y el PLC.");
-                } else {
-                    warningElement.style.display = 'none';
-                }
-            }
-        });
-
-        // Función para alternar estado de reproducción/pausa
-        function toggleChartStatus(key) {
-            const status = chartStatus[key];
-            chartStatus[key] = !status;
-            
-            // Actualizar el botón
-            let buttonId, iconElement;
-            if (key === 'db') {
-                buttonId = 'toggleDB';
-            } else if (key === 'sim1') {
-                buttonId = 'toggleSim1';
-            } else if (key === 'sim2') {
-                buttonId = 'toggleSim2';
-            }
-            
-            if (buttonId) {
-                const button = document.getElementById(buttonId);
-                const iconElement = button.querySelector('.control-icon');
+                connectionStatus.classList.add('status-active');
                 
-                if (chartStatus[key]) {
-                    // Reproduciendo (muestro pausa)
-                    iconElement.textContent = '⏸️';
-                    button.title = 'Pausar';
-                } else {
-                    // Pausado (muestro play)
-                    iconElement.textContent = '▶️';
-                    button.title = 'Reproducir';
+                // Medir tiempo de respuesta
+                const endTime = performance.now();
+                responseTime.textContent = Math.round(endTime - startTime);
+                
+                // Actualizar contador de FPS
+                frameCount++;
+                const now = Date.now();
+                if (now - lastFpsUpdate >= 1000) {
+                    fpsCounter.textContent = frameCount;
+                    frameCount = 0;
+                    lastFpsUpdate = now;
                 }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                connectionStatus.classList.remove('status-active');
             }
         }
         
-        // Función para ocultar o mostrar una gráfica
-        function toggleChartVisibility(key) {
-            chartVisibility[key] = !chartVisibility[key];
+        // Función para actualización con RequestAnimationFrame
+        function animationFrameUpdate() {
+            const now = performance.now();
+            const elapsed = now - lastUpdateTime;
             
-            let chartCard, variableItem, resumenRow;
-            if (key === 'db') {
-                chartCard = chartCardDb;
-                variableItem = variableDb;
-                resumenRow = resumenDb;
-            } else if (key === 'sim1') {
-                chartCard = chartCardSim1;
-                variableItem = variableSim1;
-                resumenRow = resumenSim1;
-            } else if (key === 'sim2') {
-                chartCard = chartCardSim2;
-                variableItem = variableSim2;
-                resumenRow = resumenSim2;
+            if (elapsed >= updateRate) {
+                lastUpdateTime = now;
+                updateVariablesData();
             }
             
-            if (chartCard && variableItem && resumenRow) {
-                if (chartVisibility[key]) {
-                    // Mostrar la gráfica y su información
-                    chartCard.classList.remove('hidden');
-                    variableItem.classList.remove('hidden');
-                    resumenRow.style.display = ''; // Mostrar en tabla de resumen
-                } else {
-                    // Ocultar la gráfica y su información
-                    chartCard.classList.add('hidden');
-                    variableItem.classList.add('hidden');
-                    resumenRow.style.display = 'none'; // Ocultar de tabla de resumen
-                }
+            requestAnimationFrame(animationFrameUpdate);
+        }
+        
+        // Función para actualización con setInterval
+        function startIntervalUpdate() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            
+            updateInterval = setInterval(() => {
+                updateVariablesData();
+            }, updateRate);
+        }
+        
+        // Iniciar la actualización automática
+        function startAutoRefresh() {
+            if (useRequestAnimationFrame) {
+                lastUpdateTime = performance.now();
+                requestAnimationFrame(animationFrameUpdate);
+            } else {
+                startIntervalUpdate();
             }
         }
         
+        // Mostrar todas las variables en gráficas
+        function showAllCharts() {
+            // Limpia las gráficas existentes
+            clearAllCharts();
+            
+            // Crear una gráfica para cada variable
+            detectedVariables.forEach((variable, index) => {
+                createChart(variable, index);
+                
+                // Seleccionar el elemento en la lista
+                const varItem = document.querySelector(`.variable-item[data-name="${variable.name}"]`);
+                if (varItem) {
+                    varItem.classList.add('selected');
+                }
+            });
+        }
+        
+        // Limpiar todas las gráficas
+        function clearAllCharts() {
+            // Destruir todas las gráficas activas
+            Object.keys(activeCharts).forEach(varName => {
+                const chartInfo = activeCharts[varName];
+                chartInfo.chart.destroy();
+                chartInfo.element.remove();
+                
+                // Deseleccionar en la lista
+                const varItem = document.querySelector(`.variable-item[data-name="${varName}"]`);
+                if (varItem) {
+                    varItem.classList.remove('selected');
+                }
+            });
+            
+            // Resetear la lista de gráficas activas
+            activeCharts = {};
+            
+            // Agregar el placeholder
+            chartsContainer.innerHTML = `
+                <div class="chart-card placeholder">
+                    <div class="chart-header">
+                        Selecciona una variable para mostrar su gráfica
+                    </div>
+                    <div class="chart-body" style="display: flex; justify-content: center; align-items: center; color: #888;">
+                        <p>Haz clic en una variable del panel izquierdo o usa el botón "Mostrar todas"</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
-            initializeCharts();
+            // Cargar variables al iniciar
+            loadVariables();
+            
+            // Iniciar actualización automática
             startAutoRefresh();
             
-            // Añadir event listeners para los botones de play/pausa
-            document.getElementById('toggleDB').addEventListener('click', function() {
-                toggleChartStatus('db');
+            // Detectar variables
+            detectBtn.addEventListener('click', detectVariables);
+            
+            // Actualizar variables
+            refreshBtn.addEventListener('click', loadVariables);
+            
+            // Cambiar tasa de actualización
+            applyRateBtn.addEventListener('click', function() {
+                const newRate = parseInt(updateRateInput.value);
+                if (!isNaN(newRate) && newRate >= 1 && newRate <= 5000) {
+                    updateRate = newRate;
+                    updateRateDisplay.textContent = newRate;
+                    
+                    // Cambiar automáticamente a RequestAnimationFrame para tasas muy rápidas
+                    if (newRate < 16) { // 16ms es aproximadamente 60fps
+                        useRequestAnimationFrame = true;
+                        if (updateInterval) {
+                            clearInterval(updateInterval);
+                            updateInterval = null;
+                        }
+                        // Iniciar animación si no está corriendo
+                        if (lastUpdateTime === 0) {
+                            lastUpdateTime = performance.now();
+                            requestAnimationFrame(animationFrameUpdate);
+                        }
+                        console.log("Modo ultra-rápido activado usando requestAnimationFrame");
+                    } else {
+                        // Volver a setInterval para tasas más lentas
+                        useRequestAnimationFrame = false;
+                        startIntervalUpdate();
+                    }
+                    
+                    // Actualizar etiquetas de tiempo en los gráficos
+                    Object.values(activeCharts).forEach(chartInfo => {
+                        chartInfo.chart.data.labels = Array(chartInfo.chart.data.datasets[0].data.length).fill('').map((_, i) => {
+                            return `-${((chartInfo.chart.data.datasets[0].data.length - i) * (updateRate / 1000)).toFixed(1)}s`;
+                        });
+                        chartInfo.chart.update('none');
+                    });
+                    
+                    // Agregar advertencia para valores muy bajos
+                    const warningElement = document.getElementById('performanceWarning');
+                    if (newRate < 10) {
+                        warningElement.style.display = 'block';
+                    } else {
+                        warningElement.style.display = 'none';
+                    }
+                }
             });
             
-            document.getElementById('toggleSim1').addEventListener('click', function() {
-                toggleChartStatus('sim1');
-            });
+            // Mostrar todas las gráficas
+            addAllChartsBtn.addEventListener('click', showAllCharts);
             
-            document.getElementById('toggleSim2').addEventListener('click', function() {
-                toggleChartStatus('sim2');
-            });
-            
-            // Añadir event listeners para los botones de cerrar
-            document.getElementById('closeDB').addEventListener('click', function() {
-                toggleChartVisibility('db');
-            });
-            
-            document.getElementById('closeSim1').addEventListener('click', function() {
-                toggleChartVisibility('sim1');
-            });
-            
-            document.getElementById('closeSim2').addEventListener('click', function() {
-                toggleChartVisibility('sim2');
-            });
-            
-            // Añadir event listeners para doble clic en las variables
-            variableDb.addEventListener('dblclick', function() {
-                if (!chartVisibility['db']) toggleChartVisibility('db');
-            });
-            
-            variableSim1.addEventListener('dblclick', function() {
-                if (!chartVisibility['sim1']) toggleChartVisibility('sim1');
-            });
-            
-            variableSim2.addEventListener('dblclick', function() {
-                if (!chartVisibility['sim2']) toggleChartVisibility('sim2');
-            });
+            // Limpiar todas las gráficas
+            clearChartsBtn.addEventListener('click', clearAllCharts);
         });
     </script>
 </body>

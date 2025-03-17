@@ -4,17 +4,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ejemplo.service.PlcService;
+import com.ejemplo.service.PlcServiceAutodetect;
+import com.ejemplo.service.PlcServiceAutodetect.PlcVariable;
+
 import javax.annotation.PostConstruct;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @Controller
 public class PlcController {
@@ -22,7 +24,7 @@ public class PlcController {
     private static final Logger logger = LoggerFactory.getLogger(PlcController.class);
     
     @Autowired
-    private PlcService plcService;
+    private PlcServiceAutodetect plcService;
     
     // Control de caché optimizado
     private final Map<String, Object> cachedStatus = new HashMap<>();
@@ -53,7 +55,19 @@ public class PlcController {
         model.addAttribute("connectionString", plcService.getConnectionString());
         model.addAttribute("lastError", plcService.getLastError());
         model.addAttribute("autoReadEnabled", plcService.isAutoReadEnabled());
-        model.addAttribute("lastValue", plcService.getLastValue());
+        
+        // Obtener variables detectadas para mostrar en la interfaz
+        Map<String, PlcVariable> variables = plcService.getDetectedVariables();
+        model.addAttribute("variables", variables);
+        
+        // Obtener el valor de la variable principal (DB2.DBW0) para compatibilidad
+        PlcVariable mainVar = plcService.getVariable("DB2.DBW0");
+        if (mainVar != null) {
+            model.addAttribute("lastValue", mainVar.getLastValue());
+        } else {
+            model.addAttribute("lastValue", "No disponible");
+        }
+        
         return "index";
     }
     
@@ -65,8 +79,13 @@ public class PlcController {
         boolean success = plcService.connect();
         result.put("success", success);
         result.put("connected", plcService.isConnected());
-        result.put("lastValue", plcService.getLastValue());
-        logger.info("Resultado de conexión: {}", success);
+        
+        // Incluir variables detectadas en la respuesta
+        List<String> variableNames = plcService.getVariableNames();
+        result.put("variables", variableNames);
+        result.put("variableCount", variableNames.size());
+        
+        logger.info("Resultado de conexión: {}, variables detectadas: {}", success, variableNames.size());
         return result;
     }
     
@@ -78,18 +97,6 @@ public class PlcController {
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("connected", false);
-        return result;
-    }
-    
-    @GetMapping("/readDB1")
-    @ResponseBody
-    public Map<String, Object> readDB1() {
-        Map<String, Object> result = new HashMap<>();
-        logger.debug("Solicitud de lectura DB1 recibida");
-        boolean success = plcService.readDB1Data();
-        result.put("success", success);
-        result.put("value", plcService.getLastValue());
-        result.put("timestamp", System.currentTimeMillis());
         return result;
     }
     
@@ -107,10 +114,17 @@ public class PlcController {
         // Si no, actualizar el caché
         Map<String, Object> status = new HashMap<>();
         status.put("connected", plcService.isConnected());
-        status.put("lastValue", plcService.getLastValue());
         status.put("lastError", plcService.getLastError());
         status.put("autoReadEnabled", plcService.isAutoReadEnabled());
         status.put("timestamp", currentTime);
+        
+        // Obtener el valor de la variable principal (DB2.DBW0) para compatibilidad
+        PlcVariable mainVar = plcService.getVariable("DB2.DBW0");
+        if (mainVar != null) {
+            status.put("lastValue", mainVar.getLastValue());
+        } else {
+            status.put("lastValue", null);
+        }
         
         // Actualizar caché de forma atómica
         synchronized (cachedStatus) {
@@ -120,6 +134,80 @@ public class PlcController {
         }
         
         return status;
+    }
+    
+    @GetMapping("/api/variables")
+    @ResponseBody
+    public Map<String, Object> getVariables() {
+        Map<String, Object> result = new HashMap<>();
+        List<String> variableNames = plcService.getVariableNames();
+        
+        // Obtener los detalles de cada variable
+        List<Map<String, Object>> variableDetails = variableNames.stream()
+            .map(name -> {
+                PlcVariable var = plcService.getVariable(name);
+                Map<String, Object> details = new HashMap<>();
+                details.put("name", var.getName());
+                details.put("address", var.getAddress());
+                details.put("dataType", var.getDataType());
+                details.put("lastValue", var.getLastValue());
+                
+                // Incluir estadísticas si es un valor numérico
+                if (var.getLastValue() instanceof Number) {
+                    details.put("min", var.getMin());
+                    details.put("max", var.getMax());
+                    details.put("avg", var.getAverage());
+                }
+                
+                return details;
+            })
+            .collect(Collectors.toList());
+        
+        result.put("details", variableDetails);
+        result.put("count", variableNames.size());
+        
+        return result;
+    }
+    
+    @GetMapping("/api/variable/{name}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getVariableDetails(@PathVariable String name) {
+        PlcVariable variable = plcService.getVariable(name);
+        
+        if (variable == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Map<String, Object> details = new HashMap<>();
+        details.put("name", variable.getName());
+        details.put("address", variable.getAddress());
+        details.put("dataType", variable.getDataType());
+        details.put("lastValue", variable.getLastValue());
+        
+        // Incluir estadísticas si es un valor numérico
+        if (variable.getLastValue() instanceof Number) {
+            details.put("min", variable.getMin());
+            details.put("max", variable.getMax());
+            details.put("avg", variable.getAverage());
+        }
+        
+        return ResponseEntity.ok(details);
+    }
+    
+    @PostMapping("/api/detectVariables")
+    @ResponseBody
+    public Map<String, Object> detectVariables() {
+        logger.info("Iniciando detección de variables...");
+        plcService.forceDetectVariables();
+        
+        Map<String, Object> result = new HashMap<>();
+        List<String> variableNames = plcService.getVariableNames();
+        result.put("success", true);
+        result.put("variables", variableNames);
+        result.put("count", variableNames.size());
+        
+        logger.info("Detección completada: {} variables encontradas", variableNames.size());
+        return result;
     }
     
     @PostMapping("/api/enableAutoRead")
