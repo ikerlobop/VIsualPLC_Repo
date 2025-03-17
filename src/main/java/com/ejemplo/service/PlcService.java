@@ -257,6 +257,8 @@ public class PlcService {
     }
 
     public Object getLastValue() {
+        //actualiza el valor a tiempo real en index.html
+        readDB1Data();  
         return lastValue;
     }
     
