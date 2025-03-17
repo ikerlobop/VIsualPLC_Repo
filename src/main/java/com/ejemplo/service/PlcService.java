@@ -10,9 +10,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.util.Random;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
+
 
 @Service
 public class PlcService {
@@ -24,10 +23,6 @@ public class PlcService {
     private String lastError;
     private boolean connected = false;
     private Object lastValue;
-    
-    // Para cambios simulados, solo para desarrollo
-    private Random random = new Random();
-    private AtomicInteger baseValue = new AtomicInteger(100);
     
     // Bandera para habilitar/deshabilitar la lectura automática
     private boolean autoReadEnabled = false;
@@ -153,11 +148,6 @@ public class PlcService {
         }
         
         try {
-            // Para desarrollo - generar valores simulados si no hay conexión real
-            if (connection == null) {
-                generateSimulatedValue();
-                return true;
-            }
             
             // Crear el request solo una vez por conexión
             if (readRequest == null) {
@@ -191,44 +181,12 @@ public class PlcService {
                 lastLogTime = currentTime;
             }
             
-            // Para desarrollo - generar valores simulados si hay error
-            generateSimulatedValue();
-            
             return true; // Devolvemos true aunque haya error, porque generamos un valor simulado
         }
     }
-    
-    // Método para generar valores simulados (solo para desarrollo)
-    private void generateSimulatedValue() {
-        // Simular un valor que cambia de forma realista
-        int currentValue = baseValue.get();
-        
-        // 80% de probabilidad de cambio pequeño, 20% de cambio grande
-        if (random.nextInt(100) < 80) {
-            // Cambio pequeño: -2 a +2
-            currentValue += (random.nextInt(5) - 2);
-        } else {
-            // Cambio grande: -10 a +10
-            currentValue += (random.nextInt(21) - 10);
-        }
-        
-        // Mantener el valor dentro de un rango razonable
-        if (currentValue < 50) currentValue = 50;
-        if (currentValue > 150) currentValue = 150;
-        
-        baseValue.set(currentValue);
-        this.lastValue = currentValue;
-        
-        // Log para desarrollo
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastLogTime > 1000) {
-            logger.debug("SIMULACIÓN: Valor generado: {}", this.lastValue);
-            lastLogTime = currentTime;
-        }
-    }
-    
-    // Método programado para leer datos automáticamente cada 50 milisegundos (20 veces por segundo)
-    @Scheduled(fixedRate = 50)
+
+    // Método programado para leer datos automáticamente cada 10 milisegundos 
+    @Scheduled(fixedRate = 10)
     public void autoReadData() {
         if (this.autoReadEnabled && this.connected) {
             readDB1Data();
