@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PlcService {
     
     private static final Logger logger = LoggerFactory.getLogger(PlcService.class);
-    private static final String CONNECTION_STRING = "s7://192.168.2.12:102";
+    private static final String CONNECTION_STRING = "s7://192.168.2.44:102";
     
     private PlcConnection connection;
     private String lastError;
